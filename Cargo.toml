@@ -12,3 +12,5 @@ tracing-subscriber = "0.3.9"
 tracing = "0.1.31"
 clap = { version = "4.0.9", features = ["derive"] }
 tokio = { version = "1.16.1", features = ["full"] }
+pallas = "0.13.2"
+hex = "0.4.3"

@@ -8,8 +8,11 @@ use oura::{
     sources::{n2n, AddressArg, BearerKind, IntersectArg, MagicArg, PointArg},
     utils::{ChainWellKnownInfo, Utils, WithUtils},
 };
+
 use std::{str::FromStr, sync::Arc, thread::JoinHandle};
 use tracing_subscriber::prelude::*;
+
+pub mod utils;
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -58,9 +61,30 @@ pub async fn start(input: StageReceiver) -> anyhow::Result<()> {
                     block_record,
                     block_record.epoch
                 );
+
+                let block_payload = hex::decode(block_record.cbor_hex.as_ref().unwrap()).unwrap();
+                let multi_block =
+                    pallas::ledger::traverse::MultiEraBlock::decode(&block_payload).unwrap();
+                for transaction in multi_block.txs() {
+                    for output in transaction.outputs() {
+                        let coin_amount = utils::coins_amounts(&output);
+                        tracing::info!("[{}] {:?}", output.address().unwrap().to_hex(), coin_amount)
+                    }
+                }
+            }
+            EventData::Transaction(transaction_record) => {
+                tracing::info!("Reading transaction");
+                for output in transaction_record.outputs.as_ref().unwrap().iter() {
+                    tracing::info!(
+                        "Address: {} {}, {:?}",
+                        output.address,
+                        output.amount,
+                        output.assets
+                    );
+                }
             }
             _ => {
-                tracing::info!("{:?}", event.data);
+                tracing::info!("other!!! {:?}", event.data);
             }
         }
     }
@@ -89,7 +113,7 @@ pub fn oura_bootstrap(
                 Some((s, h)) => (s.parse::<u64>()?, h),
                 None => return Err(anyhow!("invalid start")),
             };
-            println!("{} {}", slot, hash);
+            tracing::info!("{} {}", slot, hash);
             Some(IntersectArg::Point(PointArg(slot, hash.to_string())))
         }
         None => None,
@@ -114,7 +138,7 @@ pub fn oura_bootstrap(
 
     let source_setup = WithUtils::new(source_config, utils);
 
-    let check = Predicate::VariantIn(vec![String::from("Block")]);
+    let check = Predicate::VariantIn(vec![String::from("Block"), String::from("Transaction")]);
 
     let filter_setup = selection::Config { check };
 
