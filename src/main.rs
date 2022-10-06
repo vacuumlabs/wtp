@@ -53,8 +53,12 @@ pub async fn start(input: StageReceiver) -> anyhow::Result<()> {
 
         match &event.data {
             EventData::Block(block_record) => {
-                tracing::info!("Reading block {:?} epoch {:?}", block_record, block_record.epoch);
-            },
+                tracing::info!(
+                    "Reading block {:?} epoch {:?}",
+                    block_record,
+                    block_record.epoch
+                );
+            }
             _ => {
                 tracing::info!("{:?}", event.data);
             }
@@ -81,7 +85,7 @@ pub fn oura_bootstrap(
 
     let intersect = match start_block {
         Some(s) => {
-            let (slot, hash) = match s.split_once(":") {
+            let (slot, hash) = match s.split_once(':') {
                 Some((s, h)) => (s.parse::<u64>()?, h),
                 None => return Err(anyhow!("invalid start")),
             };
@@ -93,7 +97,7 @@ pub fn oura_bootstrap(
 
     #[allow(deprecated)]
     let source_config = n2n::Config {
-        address: if socket.contains(":") {
+        address: if socket.contains(':') {
             AddressArg(BearerKind::Tcp, socket)
         } else {
             AddressArg(BearerKind::Unix, socket)
@@ -103,7 +107,7 @@ pub fn oura_bootstrap(
         mapper,
         since: None,
         min_depth: 0,
-        intersect: intersect,
+        intersect,
         retry_policy: None,
         finalize: None, // TODO: configurable
     };
