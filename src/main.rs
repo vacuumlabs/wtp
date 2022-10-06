@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use clap::Parser;
+use config::PoolConfig;
 use oura::{
     filters::selection::{self, Predicate},
     mapper,
@@ -8,8 +9,11 @@ use oura::{
     sources::{n2n, AddressArg, BearerKind, IntersectArg, MagicArg, PointArg},
     utils::{ChainWellKnownInfo, Utils, WithUtils},
 };
-use std::{str::FromStr, sync::Arc, thread::JoinHandle};
+use pallas::ledger::traverse::MultiEraBlock;
+use std::{fs, str::FromStr, sync::Arc, thread::JoinHandle};
 use tracing_subscriber::prelude::*;
+
+mod config;
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -30,6 +34,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let config: config::Config = toml::from_str(&fs::read_to_string("example.toml")?)?;
 
     let fmt_layer = tracing_subscriber::fmt::layer();
     let filter = tracing_subscriber::filter::Targets::new()
@@ -42,22 +47,31 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let (_handles, input) = oura_bootstrap(args.start, args.socket)?;
-    start(input).await?;
+    start(input, &config.pools).await?;
     Ok(())
 }
 
-pub async fn start(input: StageReceiver) -> anyhow::Result<()> {
+pub async fn start(input: StageReceiver, pools: &[PoolConfig]) -> anyhow::Result<()> {
+    tracing::info!("Starting");
     loop {
-        tracing::info!("Starting");
         let event = input.recv()?;
 
         match &event.data {
             EventData::Block(block_record) => {
-                tracing::info!(
-                    "Reading block {:?} epoch {:?}",
-                    block_record,
-                    block_record.epoch
-                );
+                let block_payload = hex::decode(block_record.cbor_hex.as_ref().unwrap()).unwrap();
+                let multi_block = MultiEraBlock::decode(&block_payload).unwrap();
+
+                for tx in multi_block.txs() {
+                    let mut pool = None;
+                    for output in tx.outputs() {
+                        let addr = output.address().unwrap().to_hex();
+                        pool = pool.or_else(|| pools.iter().find(|p| p.address == addr))
+                    }
+
+                    if let Some(pool) = pool {
+                        tracing::info!("Found transaction for addr {:?}", pool.address);
+                    }
+                }
             }
             _ => {
                 tracing::info!("{:?}", event.data);
