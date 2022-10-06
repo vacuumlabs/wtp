@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use clap::Parser;
+use config::PoolConfig;
 use oura::{
     filters::selection::{self, Predicate},
     mapper,
@@ -8,8 +9,10 @@ use oura::{
     sources::{n2n, AddressArg, BearerKind, IntersectArg, MagicArg, PointArg},
     utils::{ChainWellKnownInfo, Utils, WithUtils},
 };
-use std::{str::FromStr, sync::Arc, thread::JoinHandle};
+use std::{fs, str::FromStr, sync::Arc, thread::JoinHandle};
 use tracing_subscriber::prelude::*;
+
+mod config;
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -30,6 +33,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let config: config::Config = toml::from_str(&fs::read_to_string("example.toml")?)?;
 
     let fmt_layer = tracing_subscriber::fmt::layer();
     let filter = tracing_subscriber::filter::Targets::new()
@@ -42,22 +46,34 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let (_handles, input) = oura_bootstrap(args.start, args.socket)?;
-    start(input).await?;
+    start(input, &config.pools).await?;
     Ok(())
 }
 
-pub async fn start(input: StageReceiver) -> anyhow::Result<()> {
+pub async fn start(input: StageReceiver, pools: &[PoolConfig]) -> anyhow::Result<()> {
+    tracing::info!("Starting");
     loop {
-        tracing::info!("Starting");
         let event = input.recv()?;
 
         match &event.data {
-            EventData::Block(block_record) => {
-                tracing::info!(
-                    "Reading block {:?} epoch {:?}",
-                    block_record,
-                    block_record.epoch
-                );
+            EventData::Transaction(transaction_record) => {
+                if let Some(outputs) = &transaction_record.outputs {
+                    let mut pool = None;
+                    for output in outputs {
+                        pool = pool.or_else(|| pools.iter().find(|p| p.address == output.address));
+                    }
+                    if let Some(pool) = pool {
+                        tracing::info!("Found transaction for addr: {}", pool.address);
+                        for output in outputs {
+                            tracing::info!(
+                                "Address: {} {}, {:?}",
+                                output.address,
+                                output.amount,
+                                output.assets
+                            );
+                        }
+                    }
+                }
             }
             _ => {
                 tracing::info!("{:?}", event.data);
@@ -114,7 +130,7 @@ pub fn oura_bootstrap(
 
     let source_setup = WithUtils::new(source_config, utils);
 
-    let check = Predicate::VariantIn(vec![String::from("Block")]);
+    let check = Predicate::VariantIn(vec![String::from("Transaction")]);
 
     let filter_setup = selection::Config { check };
 
