@@ -9,7 +9,6 @@ use oura::{
     sources::{n2n, AddressArg, BearerKind, IntersectArg, MagicArg, PointArg},
     utils::{ChainWellKnownInfo, Utils, WithUtils},
 };
-use pallas::ledger::traverse::MultiEraBlock;
 use std::{fs, str::FromStr, sync::Arc, thread::JoinHandle};
 use tracing_subscriber::prelude::*;
 
@@ -57,19 +56,22 @@ pub async fn start(input: StageReceiver, pools: &[PoolConfig]) -> anyhow::Result
         let event = input.recv()?;
 
         match &event.data {
-            EventData::Block(block_record) => {
-                let block_payload = hex::decode(block_record.cbor_hex.as_ref().unwrap()).unwrap();
-                let multi_block = MultiEraBlock::decode(&block_payload).unwrap();
-
-                for tx in multi_block.txs() {
+            EventData::Transaction(transaction_record) => {
+                if let Some(outputs) = &transaction_record.outputs {
                     let mut pool = None;
-                    for output in tx.outputs() {
-                        let addr = output.address().unwrap().to_hex();
-                        pool = pool.or_else(|| pools.iter().find(|p| p.address == addr))
+                    for output in outputs {
+                        pool = pool.or_else(|| pools.iter().find(|p| p.address == output.address));
                     }
-
                     if let Some(pool) = pool {
-                        tracing::info!("Found transaction for addr {:?}", pool.address);
+                        tracing::info!("Found transaction for addr: {}", pool.address);
+                        for output in outputs {
+                            tracing::info!(
+                                "Address: {} {}, {:?}",
+                                output.address,
+                                output.amount,
+                                output.assets
+                            );
+                        }
                     }
                 }
             }
@@ -128,7 +130,7 @@ pub fn oura_bootstrap(
 
     let source_setup = WithUtils::new(source_config, utils);
 
-    let check = Predicate::VariantIn(vec![String::from("Block")]);
+    let check = Predicate::VariantIn(vec![String::from("Transaction")]);
 
     let filter_setup = selection::Config { check };
 

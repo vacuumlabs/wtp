@@ -1,10 +1,10 @@
 
 [[pools]]
-address = "11e6c90a5923713af5786963dee0fdffd830ca7e0c86a041d9e5833e916cc2342da98d86b6229a37893bf06e69555c7d6de59d5e08ad0034b7"
+address = "addr1z8nvjzjeydcn4atcd93aac8allvrpjn7pjr2qsweukpnaytvcg6zm2vds6mz9x3h3yalqmnf24w86m09n40q3tgqxjms9yu6v8"
 token1 = "Ada"
-token2 = "WRT"
+token2 = "WingRiders"
 
 [[pools]]
-address = "11e6c90a5923713af5786963dee0fdffd830ca7e0c86a041d9e5833e918e99e702b4a39bfd5c4e25437f3100e89e4065e6cb5c72bcff8b4a09"
+address = "addr1z8nvjzjeydcn4atcd93aac8allvrpjn7pjr2qsweukpnayvwn8ns9d9rn074cn39gdlnzq8gneqxtektt3etelutfgysw42u27"
 token1 = "Ada"
-token2 = "Dana"
+token2 = "DANA"
