@@ -9,23 +9,23 @@ mod sink;
 #[derive(Parser, Debug)]
 #[command(version)]
 struct Args {
-    // Block to start from
+    /// Block to start from
     #[arg(long)]
     start: Option<String>,
 
-    // Cardano node socket
+    /// Cardano node socket
     #[arg(short, long)]
     socket: String,
 
-    // WingRiders pool adress
-    #[arg(short, long, default_value_t = String::from("11e6c90a5923713af5786963dee0fdffd830ca7e0c86a041d9e5833e916cc2342da98d86b6229a37893bf06e69555c7d6de59d5e08ad0034b7"))]
-    address: String,
+    /// Config file
+    #[arg(short, long, default_value_t = String::from("example.toml"))]
+    config: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let config: config::Config = toml::from_str(&fs::read_to_string("example.toml")?)?;
+    let config: config::Config = toml::from_str(&fs::read_to_string(&args.config)?)?;
 
     let fmt_layer = tracing_subscriber::fmt::layer();
     let filter = tracing_subscriber::filter::Targets::new()
