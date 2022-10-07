@@ -9,17 +9,17 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Transaction::Table)
+                    .table(Address::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Transaction::Id)
+                        ColumnDef::new(Address::Id)
                             .big_integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(Transaction::Hash)
+                        ColumnDef::new(Address::Payload)
                             .binary()
                             .not_null()
                             .unique_key(),
@@ -31,15 +31,15 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Transaction::Table).to_owned())
+            .drop_table(Table::drop().table(Address::Table).to_owned())
             .await
     }
 }
 
 /// Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-pub enum Transaction {
+pub enum Address {
     Table,
     Id,
-    Hash,
+    Payload,
 }

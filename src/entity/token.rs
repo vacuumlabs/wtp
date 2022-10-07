@@ -3,23 +3,23 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
-#[sea_orm(table_name = "transaction")]
+#[sea_orm(table_name = "token")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    #[sea_orm(unique)]
-    pub hash: Vec<u8>,
+    pub policy_id: Vec<u8>,
+    pub name: Vec<u8>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::transaction_output::Entity")]
-    TransactionOutput,
+    #[sea_orm(has_many = "super::token_transfer::Entity")]
+    TokenTransfer,
 }
 
-impl Related<super::transaction_output::Entity> for Entity {
+impl Related<super::token_transfer::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::TransactionOutput.def()
+        Relation::TokenTransfer.def()
     }
 }
 

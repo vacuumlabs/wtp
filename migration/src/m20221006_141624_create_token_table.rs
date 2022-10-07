@@ -9,21 +9,17 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Transaction::Table)
+                    .table(Token::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Transaction::Id)
+                        ColumnDef::new(Token::Id)
                             .big_integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Transaction::Hash)
-                            .binary()
-                            .not_null()
-                            .unique_key(),
-                    )
+                    .col(ColumnDef::new(Token::PolicyId).binary().not_null())
+                    .col(ColumnDef::new(Token::Name).binary().not_null())
                     .to_owned(),
             )
             .await
@@ -31,15 +27,16 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Transaction::Table).to_owned())
+            .drop_table(Table::drop().table(Token::Table).to_owned())
             .await
     }
 }
 
 /// Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-pub enum Transaction {
+pub enum Token {
     Table,
     Id,
-    Hash,
+    PolicyId,
+    Name,
 }
