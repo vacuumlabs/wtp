@@ -17,6 +17,10 @@ struct Args {
     #[arg(short, long)]
     socket: String,
 
+    // Postgres connection string
+    #[arg(short, long)]
+    database: String,
+
     /// Config file
     #[arg(short, long, default_value_t = String::from("example.toml"))]
     config: String,
@@ -36,6 +40,8 @@ async fn main() -> anyhow::Result<()> {
         .with(fmt_layer)
         .with(filter)
         .init();
+
+    // let db = Database::connect(args.database).await?;
 
     let (_handles, input) = setup::oura_bootstrap(args.start, args.socket)?;
     sink::start(input, &config.pools).await?;
