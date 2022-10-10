@@ -48,7 +48,7 @@ impl MigrationTrait for Migration {
                             .name("fk-transaction_output-address_id")
                             .from(TransactionOutput::Table, TransactionOutput::AddressId)
                             .to(Address::Table, Address::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
+                            .on_delete(ForeignKeyAction::NoAction),
                     )
                     .col(
                         ColumnDef::new(TransactionOutput::Spent)

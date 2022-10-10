@@ -43,7 +43,7 @@ impl MigrationTrait for Migration {
                             .name("fk-token_transfer-token_id")
                             .from(TokenTransfer::Table, TokenTransfer::TokenId)
                             .to(Token::Table, Token::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
+                            .on_delete(ForeignKeyAction::NoAction),
                     )
                     .col(
                         ColumnDef::new(TokenTransfer::Amount)
