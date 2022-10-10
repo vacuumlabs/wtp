@@ -9,12 +9,27 @@ pub struct Model {
     pub id: i64,
     #[sea_orm(unique)]
     pub hash: Vec<u8>,
+    pub block_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::block::Entity",
+        from = "Column::BlockId",
+        to = "super::block::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Block,
     #[sea_orm(has_many = "super::transaction_output::Entity")]
     TransactionOutput,
+}
+
+impl Related<super::block::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Block.def()
+    }
 }
 
 impl Related<super::transaction_output::Entity> for Entity {
