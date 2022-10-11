@@ -12,10 +12,19 @@ pub struct Model {
     pub height: i32,
     pub epoch: i32,
     pub slot: i32,
+    pub previous_block_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "Entity",
+        from = "Column::PreviousBlockId",
+        to = "Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    SelfRef,
     #[sea_orm(has_many = "super::transaction::Entity")]
     Transaction,
 }

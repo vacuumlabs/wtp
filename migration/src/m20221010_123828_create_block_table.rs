@@ -24,6 +24,18 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Block::Height).integer().not_null())
                     .col(ColumnDef::new(Block::Epoch).integer().not_null())
                     .col(ColumnDef::new(Block::Slot).integer().not_null())
+                    .col(
+                        ColumnDef::new(Block::PreviousBlockId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-block-previous_block_id")
+                            .from(Block::Table, Block::PreviousBlockId)
+                            .to(Block::Table, Block::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -68,11 +80,12 @@ impl MigrationTrait for Migration {
 
 /// Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-enum Block {
+pub enum Block {
     Table,
     Id,
     Hash,
     Height,
     Epoch,
     Slot,
+    PreviousBlockId,
 }
