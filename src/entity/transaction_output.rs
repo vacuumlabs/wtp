@@ -20,7 +20,7 @@ pub enum Relation {
         from = "Column::AddressId",
         to = "super::address::Column::Id",
         on_update = "NoAction",
-        on_delete = "Cascade"
+        on_delete = "NoAction"
     )]
     Address,
     #[sea_orm(

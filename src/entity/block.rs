@@ -3,38 +3,35 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
-#[sea_orm(table_name = "transaction")]
+#[sea_orm(table_name = "block")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     #[sea_orm(unique)]
     pub hash: Vec<u8>,
-    pub block_id: i64,
+    pub height: i32,
+    pub epoch: i32,
+    pub slot: i32,
+    pub previous_block_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::block::Entity",
-        from = "Column::BlockId",
-        to = "super::block::Column::Id",
+        belongs_to = "Entity",
+        from = "Column::PreviousBlockId",
+        to = "Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    Block,
-    #[sea_orm(has_many = "super::transaction_output::Entity")]
-    TransactionOutput,
+    SelfRef,
+    #[sea_orm(has_many = "super::transaction::Entity")]
+    Transaction,
 }
 
-impl Related<super::block::Entity> for Entity {
+impl Related<super::transaction::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Block.def()
-    }
-}
-
-impl Related<super::transaction_output::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TransactionOutput.def()
+        Relation::Transaction.def()
     }
 }
 

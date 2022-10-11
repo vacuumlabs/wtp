@@ -7,8 +7,25 @@ pub async fn start(input: StageReceiver, pools: &[config::PoolConfig]) -> anyhow
         let event = input.recv()?;
 
         match &event.data {
+            EventData::Block(block) => {
+                tracing::debug!("Block: {} {}", block.slot, block.hash);
+                // TODO add block to db
+            }
+            EventData::RollBack {
+                block_slot,
+                block_hash,
+            } => {
+                tracing::debug!("Rollback, current block: {} {}", block_slot, block_hash);
+                // TODO remove blocks from db
+            }
             EventData::Transaction(transaction_record) => {
                 if let Some(outputs) = &transaction_record.outputs {
+                    tracing::debug!(
+                        "Transaction: {} (in block {})",
+                        transaction_record.hash,
+                        event.context.block_hash.unwrap(),
+                    );
+                    // TODO add transaction to db
                     let mut pool = None;
                     for output in outputs {
                         pool = pool.or_else(|| pools.iter().find(|p| p.address == output.address));

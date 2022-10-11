@@ -42,4 +42,5 @@ pub enum Transaction {
     Table,
     Id,
     Hash,
+    BlockId,
 }

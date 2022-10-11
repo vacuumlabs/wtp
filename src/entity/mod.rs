@@ -3,6 +3,7 @@
 pub mod prelude;
 
 pub mod address;
+pub mod block;
 pub mod token;
 pub mod token_transfer;
 pub mod transaction;

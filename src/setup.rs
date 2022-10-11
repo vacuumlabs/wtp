@@ -56,7 +56,11 @@ pub fn oura_bootstrap(
 
     let source_setup = WithUtils::new(source_config, utils);
 
-    let check = Predicate::VariantIn(vec![String::from("Transaction")]);
+    let check = Predicate::VariantIn(vec![
+        String::from("Block"),
+        String::from("RollBack"),
+        String::from("Transaction"),
+    ]);
 
     let filter_setup = selection::Config { check };
 
