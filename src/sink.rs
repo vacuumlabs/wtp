@@ -3,25 +3,31 @@ use oura::{
     model::{EventData, TransactionRecord, TxOutputRecord},
     pipelining::StageReceiver,
 };
-use rust_decimal::Decimal;
 
 #[allow(dead_code)]
 struct Asset {
     policy: String,
     name: String,
-    amount: Decimal,
+    amount: u64,
 }
 
-fn get_amount(output: &TxOutputRecord, policy: &String, asset: &String) -> u64 {
-    if asset.is_empty() {
+fn get_amount(output: &TxOutputRecord, policy_id: &str, asset: &str) -> u64 {
+    if asset.is_empty() && policy_id.is_empty() {
         return output.amount as u64;
     }
     output
         .assets
         .iter()
         .flatten()
-        .filter(|a| a.asset == *asset && a.policy == *policy)
+        .filter(|a| a.asset == *asset && a.policy == *policy_id)
         .fold(0, |sum, a| sum + a.amount) as u64
+}
+
+fn wr_transaction(policy_id: &str, asset: &str) -> u64 {
+    if policy_id.is_empty() && asset.is_empty() {
+        return 3;
+    }
+    0
 }
 
 fn get_wr_transaction(
@@ -69,14 +75,12 @@ fn get_wr_transaction(
                 .to_string();
 
             // Get amount of tokens
-            let amount1 = Decimal::new(
-                (get_amount(output, &policy1, &token1) as i64) - treasury1.unwrap(),
-                6,
-            );
-            let amount2 = Decimal::new(
-                (get_amount(output, &policy2, &token2) as i64) - treasury2.unwrap(),
-                6,
-            );
+            let amount1 = get_amount(output, &policy1, &token1)
+                - (treasury1.unwrap() as u64)
+                - wr_transaction(&policy1, &token1);
+            let amount2 = get_amount(output, &policy2, &token2)
+                - (treasury2.unwrap() as u64)
+                - wr_transaction(&policy2, &token2);
 
             // First asset info
             tracing::info!(
