@@ -3,35 +3,31 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "block")]
+#[sea_orm(table_name = "raw_token_transfer")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    #[sea_orm(unique)]
-    pub hash: Vec<u8>,
-    pub height: i64,
-    pub epoch: i64,
-    pub slot: i64,
-    pub previous_block_id: Option<i64>,
+    pub output_id: i64,
+    pub policy_id: Vec<u8>,
+    pub name: Vec<u8>,
+    pub amount: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "Entity",
-        from = "Column::PreviousBlockId",
-        to = "Column::Id",
+        belongs_to = "super::raw_transaction_output::Entity",
+        from = "Column::OutputId",
+        to = "super::raw_transaction_output::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    SelfRef,
-    #[sea_orm(has_many = "super::transaction::Entity")]
-    Transaction,
+    RawTransactionOutput,
 }
 
-impl Related<super::transaction::Entity> for Entity {
+impl Related<super::raw_transaction_output::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Transaction.def()
+        Relation::RawTransactionOutput.def()
     }
 }
 

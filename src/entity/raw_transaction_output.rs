@@ -3,26 +3,17 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "transaction_output")]
+#[sea_orm(table_name = "raw_transaction_output")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     pub tx_id: i64,
     pub index: i32,
-    pub address_id: i64,
     pub datum_hash: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::address::Entity",
-        from = "Column::AddressId",
-        to = "super::address::Column::Id",
-        on_update = "NoAction",
-        on_delete = "NoAction"
-    )]
-    Address,
     #[sea_orm(
         belongs_to = "super::transaction::Entity",
         from = "Column::TxId",
@@ -31,17 +22,27 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Transaction,
-}
-
-impl Related<super::address::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Address.def()
-    }
+    #[sea_orm(has_many = "super::raw_token_transfer::Entity")]
+    RawTokenTransfer,
+    #[sea_orm(has_many = "super::token_transfer::Entity")]
+    TokenTransfer,
 }
 
 impl Related<super::transaction::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Transaction.def()
+    }
+}
+
+impl Related<super::raw_token_transfer::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RawTokenTransfer.def()
+    }
+}
+
+impl Related<super::token_transfer::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TokenTransfer.def()
     }
 }
 

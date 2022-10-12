@@ -7,6 +7,7 @@ mod m20221007_095717_create_transaction_output_table;
 mod m20221007_105847_create_token_transfer_table;
 mod m20221010_123828_create_block_table;
 mod m20221013_162928_create_price_update_table;
+mod m20221013_194016_add_datum_hash;
 mod m20221014_125218_create_indices;
 
 pub struct Migrator;
@@ -23,6 +24,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20221010_123828_create_block_table::Migration),
             Box::new(m20221013_162928_create_price_update_table::Migration),
             Box::new(m20221014_125218_create_indices::Migration),
+            Box::new(m20221013_194016_add_datum_hash::Migration),
         ]
     }
 }

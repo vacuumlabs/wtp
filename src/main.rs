@@ -49,6 +49,7 @@ async fn main() -> anyhow::Result<()> {
     let fmt_layer = tracing_subscriber::fmt::layer();
     let filter = tracing_subscriber::filter::Targets::new()
         .with_target("oura", tracing::Level::WARN)
+        //.with_target("sqlx", tracing::Level::DEBUG)
         .with_target("cardano_price_feed", tracing::Level::TRACE);
 
     tracing_subscriber::registry()

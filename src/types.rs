@@ -28,3 +28,12 @@ pub struct ExchangeHistory {
     pub rate: f64,
     pub timestamp: DateTime,
 }
+
+#[derive(Debug, Serialize)]
+pub struct Swap {
+    pub first: AssetAmount,
+    pub second: AssetAmount,
+    pub direction: bool, // false - buy, tru - sell
+}
+
+pub type PlutusData = Swap;

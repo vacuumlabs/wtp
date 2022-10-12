@@ -20,12 +20,14 @@ pub fn oura_bootstrap(
     let utils = Arc::new(Utils::new(well_known));
 
     let mapper = mapper::Config {
+        include_block_details: true,
         include_transaction_details: true,
         include_block_cbor: true,
         ..Default::default()
     };
 
     let intersect = match start_block {
+        Some(s) if s.contains("origin") => Some(IntersectArg::Origin),
         Some(s) => {
             let (slot, hash) = match s.split_once(':') {
                 Some((s, h)) => (s.parse::<u64>()?, h),
@@ -59,7 +61,8 @@ pub fn oura_bootstrap(
     let check = Predicate::VariantIn(vec![
         String::from("Block"),
         String::from("RollBack"),
-        String::from("Transaction"),
+        //String::from("Transaction"),
+        //String::from("TxOutput"),
     ]);
 
     let filter_setup = selection::Config { check };
