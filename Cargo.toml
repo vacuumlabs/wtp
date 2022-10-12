@@ -19,7 +19,7 @@ serde = { version = "1.0.145", features = ["derive"] }
 toml = "0.5.9"
 hex = "0.4.3"
 pallas = "0.13.2"
-sea-orm = { version = "0.9.3", features = [ "sqlx-postgres", "runtime-tokio-rustls", "macros" ] }
+sea-orm = { git = "https://github.com/dcSpark/sea-orm", branch = "insert-many-returning", features = [ "sqlx-postgres", "runtime-tokio-rustls", "macros" ] }
 rust_decimal = "0.7.1"
 bech32 = "0.9.1"
 hyper = { version = "0.14.20", features = ["tcp", "server", "http1"] }
