@@ -21,14 +21,10 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Block::Hash).binary().not_null().unique_key())
-                    .col(ColumnDef::new(Block::Height).integer().not_null())
-                    .col(ColumnDef::new(Block::Epoch).integer().not_null())
-                    .col(ColumnDef::new(Block::Slot).integer().not_null())
-                    .col(
-                        ColumnDef::new(Block::PreviousBlockId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Block::Height).big_unsigned().not_null())
+                    .col(ColumnDef::new(Block::Epoch).big_unsigned().not_null())
+                    .col(ColumnDef::new(Block::Slot).big_unsigned().not_null())
+                    .col(ColumnDef::new(Block::PreviousBlockId).big_integer())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-block-previous_block_id")
