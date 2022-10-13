@@ -147,16 +147,18 @@ pub async fn start(
                     .context
                     .block_hash
                     .ok_or_else(|| anyhow::anyhow!("No block hash"))?;
-                queries::insert_transaction(transaction_record, &block_hash, &db).await?;
+                let tx_id =
+                    queries::insert_transaction(transaction_record, &block_hash, &db).await?;
 
-                pools.iter().for_each(|p| {
-                    let script_hash = hex::decode(p.script_hash.clone()).unwrap();
-                    if let Some((_first, _second)) =
-                        get_wr_transaction(transaction_record, script_hash)
+                for pool in pools {
+                    let script_hash = hex::decode(pool.script_hash.clone()).unwrap();
+                    if let Some((asset1, asset2)) =
+                        get_wr_transaction(transaction_record, script_hash.clone())
                     {
-                        // Do something
+                        queries::insert_price_update(tx_id, script_hash, asset1, asset2, &db)
+                            .await?;
                     }
-                });
+                }
             }
             _ => {
                 tracing::info!("{:?}", event.data);

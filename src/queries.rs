@@ -6,7 +6,10 @@ use sea_orm::{
 };
 
 use crate::{
-    entity::{address, block, token, token_transfer, transaction, transaction_output},
+    entity::{
+        address, block, price_update, token, token_transfer, transaction, transaction_output,
+    },
+    types::Asset,
     utils::ADA_TOKEN,
 };
 
@@ -45,7 +48,7 @@ pub async fn insert_transaction(
     transaction: &TransactionRecord,
     block_hash: &String,
     db: &DatabaseConnection,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<i64> {
     let block_hash = hex::decode(block_hash)?;
     let block_model = block::Entity::find()
         .filter(block::Column::Hash.eq(block_hash))
@@ -94,7 +97,7 @@ pub async fn insert_transaction(
         .await?;
     }
 
-    Ok(())
+    Ok(transaction_model.id)
 }
 
 async fn insert_missing_addresses(
@@ -230,5 +233,44 @@ async fn insert_output(
         token_transfer_model.insert(db).await?;
     }
 
+    Ok(())
+}
+
+pub async fn insert_price_update(
+    tx_id: i64,
+    script_hash: Vec<u8>,
+    asset1: Asset,
+    asset2: Asset,
+    db: &DatabaseConnection,
+) -> anyhow::Result<()> {
+    let token1_model = token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(asset1.policy_id)
+                .and(token::Column::Name.eq(asset1.name)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
+    let token2_model = token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(asset2.policy_id)
+                .and(token::Column::Name.eq(asset2.name)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+
+    let price_update_model = price_update::ActiveModel {
+        tx_id: Set(tx_id),
+        script_hash: Set(script_hash),
+        token1_id: Set(token1_model.id),
+        token2_id: Set(token2_model.id),
+        amount1: Set(asset1.amount as i64),
+        amount2: Set(asset2.amount as i64),
+        ..Default::default()
+    };
+    price_update_model.insert(db).await?;
     Ok(())
 }
