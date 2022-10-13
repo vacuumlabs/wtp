@@ -9,6 +9,7 @@ mod queries;
 mod server;
 mod setup;
 mod sink;
+mod types;
 mod utils;
 
 use hyper::service::{make_service_fn, service_fn};

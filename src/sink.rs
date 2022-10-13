@@ -1,16 +1,9 @@
-use crate::{config, queries, utils};
+use crate::{config, queries, types::Asset, utils};
 use oura::{
     model::{EventData, TransactionRecord, TxOutputRecord},
     pipelining::StageReceiver,
 };
 use sea_orm::DatabaseConnection;
-
-#[allow(dead_code)]
-struct Asset {
-    policy: String,
-    name: String,
-    amount: u64,
-}
 
 fn get_amount(output: &TxOutputRecord, policy_id: &str, asset: &str) -> u64 {
     if asset.is_empty() && policy_id.is_empty() {
@@ -107,18 +100,18 @@ fn get_wr_transaction(
                 token2,
                 amount1,
                 amount2,
-                amount1 / amount2
+                amount1 as f64 / amount2 as f64
             );
 
             return Some((
                 Asset {
-                    policy: policy1,
-                    name: token1,
+                    policy_id: hex::decode(policy1).unwrap(),
+                    name: hex::decode(token1).unwrap(),
                     amount: amount1,
                 },
                 Asset {
-                    policy: policy2,
-                    name: token2,
+                    policy_id: hex::decode(policy2).unwrap(),
+                    name: hex::decode(token2).unwrap(),
                     amount: amount2,
                 },
             ));
