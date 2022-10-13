@@ -105,13 +105,13 @@ fn get_wr_transaction(
 
             return Some((
                 Asset {
-                    policy_id: hex::decode(policy1).unwrap(),
-                    name: hex::decode(token1).unwrap(),
+                    policy_id: policy1,
+                    name: token1,
                     amount: amount1,
                 },
                 Asset {
-                    policy_id: hex::decode(policy2).unwrap(),
-                    name: hex::decode(token2).unwrap(),
+                    policy_id: policy2,
+                    name: token2,
                     amount: amount2,
                 },
             ));

@@ -2,14 +2,15 @@ use std::collections::{HashMap, HashSet};
 
 use oura::model::{BlockRecord, TransactionRecord, TxOutputRecord};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbBackend, EntityTrait,
+    FromQueryResult, QueryFilter, Set, Statement,
 };
 
 use crate::{
     entity::{
         address, block, price_update, token, token_transfer, transaction, transaction_output,
     },
-    types::Asset,
+    types::{Asset, ExchangeRate},
     utils::ADA_TOKEN,
 };
 
@@ -246,8 +247,8 @@ pub async fn insert_price_update(
     let token1_model = token::Entity::find()
         .filter(
             token::Column::PolicyId
-                .eq(asset1.policy_id)
-                .and(token::Column::Name.eq(asset1.name)),
+                .eq(hex::decode(asset1.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(asset1.name)?)),
         )
         .one(db)
         .await?
@@ -255,8 +256,8 @@ pub async fn insert_price_update(
     let token2_model = token::Entity::find()
         .filter(
             token::Column::PolicyId
-                .eq(asset2.policy_id)
-                .and(token::Column::Name.eq(asset2.name)),
+                .eq(hex::decode(asset2.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(asset2.name)?)),
         )
         .one(db)
         .await?
@@ -273,4 +274,67 @@ pub async fn insert_price_update(
     };
     price_update_model.insert(db).await?;
     Ok(())
+}
+
+pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<ExchangeRate>> {
+    // The raw SQL query here is rather unlucky, but we need to join the token table twice,
+    // and the sea-orm version usde by us (dcSpark's fork which implements
+    // exec_many_with_returning) doesn't seem to support join aliases.
+    // TODO figure out how to do both multi-joining here and exec_many_with_returning above.
+
+    #[derive(Debug, FromQueryResult)]
+    struct RawExchangeRate {
+        script_hash: Vec<u8>,
+        policy_id1: Vec<u8>,
+        name1: Vec<u8>,
+        policy_id2: Vec<u8>,
+        name2: Vec<u8>,
+        amount1: i64,
+        amount2: i64,
+    }
+
+    let raw_exchange_rates: Vec<RawExchangeRate> =
+        RawExchangeRate::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
+            SELECT
+                script_hash,
+                t1.policy_id AS policy_id1,
+                t1.name AS name1,
+                t2.policy_id AS policy_id2,
+                t2.name AS name2,
+                amount1,
+                amount2
+            FROM price_update
+            JOIN token AS t1 ON t1.id = price_update.token1_id
+            JOIN token AS t2 ON t2.id = price_update.token2_id
+            WHERE (script_hash, token1_id, token2_id, timestamp) IN (
+                SELECT script_hash, token1_id, token2_id, MAX(timestamp)
+                FROM price_update
+                GROUP BY script_hash, token1_id, token2_id
+            )
+            "#,
+            vec![],
+        ))
+        .all(db)
+        .await
+        .unwrap();
+
+    Ok(raw_exchange_rates
+        .iter()
+        .map(|r| ExchangeRate {
+            script_hash: hex::encode(r.script_hash.clone()),
+            asset1: Asset {
+                policy_id: hex::encode(r.policy_id1.clone()),
+                name: hex::encode(r.name1.clone()),
+                amount: r.amount1 as u64,
+            },
+            asset2: Asset {
+                policy_id: hex::encode(r.policy_id2.clone()),
+                name: hex::encode(r.name2.clone()),
+                amount: r.amount2 as u64,
+            },
+            rate: r.amount1 as f64 / r.amount2 as f64,
+        })
+        .collect())
 }

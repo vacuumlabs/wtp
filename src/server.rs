@@ -1,61 +1,28 @@
 use hyper::{Body, Method, Request, Response, StatusCode};
-use serde::Serialize;
+use sea_orm::Database;
 
-#[derive(Serialize)]
-struct Token {
-    name: String,
-    policyid: String,
+use crate::queries;
+
+async fn get_exchange_rates(db_path: String) -> anyhow::Result<String> {
+    let db = Database::connect(db_path).await?;
+    let data = queries::get_latest_prices(&db).await?;
+    Ok(serde_json::to_string(&data)?)
 }
 
-#[derive(Serialize)]
-struct ExchangeRate {
-    first: Token,
-    second: Token,
-    ratio: f64,
-}
-
-fn get_exchange_rates() -> String {
-    let mock_data = vec![
-        ExchangeRate {
-            first: Token {
-                name: String::from(""),
-                policyid: String::from(""),
-            },
-            second: Token {
-                name: String::from("WingRiders"),
-                policyid: String::from("c0ee29a85b13209423b10447d3c2e6a50641a15c57770e27cb9d5073"),
-            },
-            ratio: 0.344,
-        },
-        ExchangeRate {
-            first: Token {
-                name: String::from(""),
-                policyid: String::from(""),
-            },
-            second: Token {
-                name: String::from("DANA"),
-                policyid: String::from("c88bbd1848db5ea665b1fffbefba86e8dcd723b5085348e8a8d2260f"),
-            },
-            ratio: 4.32,
-        },
-    ];
-    serde_json::to_string(&mock_data).unwrap()
-}
-
-pub async fn handle(req: Request<Body>) -> hyper::http::Result<Response<String>> {
+pub async fn handle(req: Request<Body>, db_path: String) -> anyhow::Result<Response<String>> {
     let builder = Response::builder();
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/health") => builder
-            .header("Content-Type", "text/json")
+            .header("Content-Type", "application/json")
             .body(String::from("true")),
         (&Method::GET, "/exchange_rates") => builder
-            .header("Content-Type", "text/json")
-            .body(get_exchange_rates()),
+            .header("Content-Type", "application/json")
+            .body(get_exchange_rates(db_path).await?),
         _ => builder
             .status(StatusCode::NOT_FOUND)
             .body(String::from("404 Not found")),
     };
 
-    response
+    Ok(response?)
 }
