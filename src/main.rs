@@ -3,8 +3,14 @@ use std::fs;
 use tracing_subscriber::prelude::*;
 
 mod config;
+mod server;
 mod setup;
 mod sink;
+
+use hyper::service::{make_service_fn, service_fn};
+use hyper::Server;
+use std::convert::Infallible;
+use std::net::SocketAddr;
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -40,6 +46,12 @@ async fn main() -> anyhow::Result<()> {
         .with(fmt_layer)
         .with(filter)
         .init();
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let make_service =
+        make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(server::handle)) });
+    let server = Server::bind(&addr).serve(make_service);
+    tokio::spawn(async move { server.await });
 
     // let db = Database::connect(args.database).await?;
 
