@@ -2,6 +2,7 @@
 
 pub use super::address::Entity as Address;
 pub use super::block::Entity as Block;
+pub use super::price_update::Entity as PriceUpdate;
 pub use super::token::Entity as Token;
 pub use super::token_transfer::Entity as TokenTransfer;
 pub use super::transaction::Entity as Transaction;

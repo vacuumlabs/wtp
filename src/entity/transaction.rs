@@ -24,6 +24,8 @@ pub enum Relation {
     Block,
     #[sea_orm(has_many = "super::transaction_output::Entity")]
     TransactionOutput,
+    #[sea_orm(has_many = "super::price_update::Entity")]
+    PriceUpdate,
 }
 
 impl Related<super::block::Entity> for Entity {
@@ -35,6 +37,12 @@ impl Related<super::block::Entity> for Entity {
 impl Related<super::transaction_output::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TransactionOutput.def()
+    }
+}
+
+impl Related<super::price_update::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PriceUpdate.def()
     }
 }
 

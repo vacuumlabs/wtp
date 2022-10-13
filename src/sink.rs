@@ -1,16 +1,9 @@
-use crate::{config, queries, utils};
+use crate::{config, queries, types::Asset, utils};
 use oura::{
     model::{EventData, TransactionRecord, TxOutputRecord},
     pipelining::StageReceiver,
 };
 use sea_orm::DatabaseConnection;
-
-#[allow(dead_code)]
-struct Asset {
-    policy: String,
-    name: String,
-    amount: u64,
-}
 
 fn get_amount(output: &TxOutputRecord, policy_id: &str, asset: &str) -> u64 {
     if asset.is_empty() && policy_id.is_empty() {
@@ -107,17 +100,17 @@ fn get_wr_transaction(
                 token2,
                 amount1,
                 amount2,
-                amount1 / amount2
+                amount1 as f64 / amount2 as f64
             );
 
             return Some((
                 Asset {
-                    policy: policy1,
+                    policy_id: policy1,
                     name: token1,
                     amount: amount1,
                 },
                 Asset {
-                    policy: policy2,
+                    policy_id: policy2,
                     name: token2,
                     amount: amount2,
                 },
@@ -154,16 +147,18 @@ pub async fn start(
                     .context
                     .block_hash
                     .ok_or_else(|| anyhow::anyhow!("No block hash"))?;
-                queries::insert_transaction(transaction_record, &block_hash, &db).await?;
+                let tx_id =
+                    queries::insert_transaction(transaction_record, &block_hash, &db).await?;
 
-                pools.iter().for_each(|p| {
-                    let script_hash = hex::decode(p.script_hash.clone()).unwrap();
-                    if let Some((_first, _second)) =
-                        get_wr_transaction(transaction_record, script_hash)
+                for pool in pools {
+                    let script_hash = hex::decode(pool.script_hash.clone()).unwrap();
+                    if let Some((asset1, asset2)) =
+                        get_wr_transaction(transaction_record, script_hash.clone())
                     {
-                        // Do something
+                        queries::insert_price_update(tx_id, script_hash, asset1, asset2, &db)
+                            .await?;
                     }
-                });
+                }
             }
             _ => {
                 tracing::info!("{:?}", event.data);

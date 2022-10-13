@@ -9,6 +9,7 @@ mod queries;
 mod server;
 mod setup;
 mod sink;
+mod types;
 mod utils;
 
 use hyper::service::{make_service_fn, service_fn};
@@ -51,9 +52,13 @@ async fn main() -> anyhow::Result<()> {
         .with(filter)
         .init();
 
+    let db_path = args.database.clone();
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    let make_service =
-        make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(server::handle)) });
+    let make_service = make_service_fn(move |_conn| {
+        let db_path = db_path.clone();
+        let service = service_fn(move |req| server::handle(req, db_path.clone()));
+        async move { Ok::<_, Infallible>(service) }
+    });
     let server = Server::bind(&addr).serve(make_service);
     tokio::spawn(async move { server.await });
 
