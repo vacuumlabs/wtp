@@ -7,7 +7,5 @@ pub struct Config {
 
 #[derive(Deserialize, Debug)]
 pub struct PoolConfig {
-    pub address: String,
-    pub token1: String,
-    pub token2: String,
+    pub script_hash: String,
 }

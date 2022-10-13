@@ -1,4 +1,4 @@
-use crate::{config, queries};
+use crate::{config, queries, utils};
 use oura::{
     model::{EventData, TransactionRecord, TxOutputRecord},
     pipelining::StageReceiver,
@@ -33,14 +33,14 @@ fn wr_transaction(policy_id: &str, asset: &str) -> u64 {
 
 fn get_wr_transaction(
     transaction: &TransactionRecord,
-    script_hash: &String, // TODO: it is not prepared for hash, only for address
+    script_hash: Vec<u8>,
 ) -> Option<(Asset, Asset)> {
     // Find correct address
     if let Some(output) = transaction
         .outputs
         .iter()
         .flatten()
-        .find(|&o| &o.address == script_hash)
+        .find(|&o| utils::get_payment_hash(&o.address) == Some(script_hash.clone()))
     {
         // Check plutus data
         if let Some(datum) = transaction.plutus_data.iter().flatten().find(
@@ -157,8 +157,9 @@ pub async fn start(
                 queries::insert_transaction(transaction_record, &block_hash, &db).await?;
 
                 pools.iter().for_each(|p| {
+                    let script_hash = hex::decode(p.script_hash.clone()).unwrap();
                     if let Some((_first, _second)) =
-                        get_wr_transaction(transaction_record, &p.address)
+                        get_wr_transaction(transaction_record, script_hash)
                     {
                         // Do something
                     }
