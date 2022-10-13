@@ -20,7 +20,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(
                         ColumnDef::new(Address::Payload)
-                            .binary()
+                            .string()
                             .not_null()
                             .unique_key(),
                     )

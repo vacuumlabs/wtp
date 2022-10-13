@@ -1,11 +1,15 @@
 use clap::Parser;
+use sea_orm::Database;
 use std::fs;
 use tracing_subscriber::prelude::*;
 
 mod config;
+mod entity;
+mod queries;
 mod server;
 mod setup;
 mod sink;
+mod utils;
 
 use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
@@ -53,9 +57,9 @@ async fn main() -> anyhow::Result<()> {
     let server = Server::bind(&addr).serve(make_service);
     tokio::spawn(async move { server.await });
 
-    // let db = Database::connect(args.database).await?;
+    let db = Database::connect(args.database).await?;
 
     let (_handles, input) = setup::oura_bootstrap(args.start, args.socket)?;
-    sink::start(input, &config.pools).await?;
+    sink::start(input, db, &config.pools).await?;
     Ok(())
 }

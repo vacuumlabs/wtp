@@ -2,17 +2,17 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "block")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     #[sea_orm(unique)]
     pub hash: Vec<u8>,
-    pub height: i32,
-    pub epoch: i32,
-    pub slot: i32,
-    pub previous_block_id: i64,
+    pub height: i64,
+    pub epoch: i64,
+    pub slot: i64,
+    pub previous_block_id: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

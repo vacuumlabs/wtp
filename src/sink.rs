@@ -1,8 +1,9 @@
-use crate::config;
+use crate::{config, queries};
 use oura::{
     model::{EventData, TransactionRecord, TxOutputRecord},
     pipelining::StageReceiver,
 };
+use sea_orm::DatabaseConnection;
 
 #[allow(dead_code)]
 struct Asset {
@@ -126,7 +127,11 @@ fn get_wr_transaction(
     None
 }
 
-pub async fn start(input: StageReceiver, pools: &[config::PoolConfig]) -> anyhow::Result<()> {
+pub async fn start(
+    input: StageReceiver,
+    db: DatabaseConnection,
+    pools: &[config::PoolConfig],
+) -> anyhow::Result<()> {
     tracing::info!("Starting");
 
     loop {
@@ -135,22 +140,22 @@ pub async fn start(input: StageReceiver, pools: &[config::PoolConfig]) -> anyhow
         match &event.data {
             EventData::Block(block) => {
                 tracing::debug!("Block: {} {}", block.slot, block.hash);
-                // TODO add block to db
+                queries::insert_block(block, &db).await?;
             }
             EventData::RollBack {
                 block_slot,
                 block_hash,
             } => {
                 tracing::debug!("Rollback, current block: {} {}", block_slot, block_hash);
-                // TODO remove blocks from db
+                queries::rollback_to_slot(block_slot, &db).await?;
             }
             EventData::Transaction(transaction_record) => {
-                //tracing::debug!(
-                //    "Transaction: {} (in block {})",
-                //    transaction_record.hash,
-                //    event.context.block_hash.unwrap(),
-                //);
-                // TODO add transaction to db
+                let block_hash = event
+                    .context
+                    .block_hash
+                    .ok_or_else(|| anyhow::anyhow!("No block hash"))?;
+                queries::insert_transaction(transaction_record, &block_hash, &db).await?;
+
                 pools.iter().for_each(|p| {
                     if let Some((_first, _second)) =
                         get_wr_transaction(transaction_record, &p.address)
