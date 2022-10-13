@@ -66,6 +66,12 @@ impl MigrationTrait for Migration {
                             .big_unsigned()
                             .not_null(),
                     )
+                    .col(
+                        ColumnDef::new(PriceUpdate::Timestamp)
+                            .timestamp()
+                            .not_null()
+                            .extra("DEFAULT CURRENT_TIMESTAMP".to_owned()),
+                    )
                     .to_owned(),
             )
             .await
@@ -89,4 +95,5 @@ pub enum PriceUpdate {
     Token2Id,
     Amount1,
     Amount2,
+    Timestamp,
 }
