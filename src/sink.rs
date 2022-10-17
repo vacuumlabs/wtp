@@ -1,4 +1,8 @@
-use crate::{config, queries, types::Asset, utils};
+use crate::{
+    config, queries, server,
+    types::{Asset, ExchangeRate},
+    utils,
+};
 use oura::{
     model::{EventData, TransactionRecord, TxOutputRecord},
     pipelining::StageReceiver,
@@ -155,6 +159,13 @@ pub async fn start(
                     if let Some((asset1, asset2)) =
                         get_wr_transaction(transaction_record, script_hash.clone())
                     {
+                        let exchange_rate = ExchangeRate {
+                            asset1: asset1.clone(),
+                            asset2: asset2.clone(),
+                            script_hash: pool.script_hash.clone(),
+                            rate: asset1.amount as f64 / asset2.amount as f64,
+                        };
+                        server::ws_broadcast(serde_json::to_string(&exchange_rate).unwrap());
                         queries::insert_price_update(tx_id, script_hash, asset1, asset2, &db)
                             .await?;
                     }
