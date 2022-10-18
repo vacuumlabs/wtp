@@ -1,6 +1,6 @@
 use crate::{
     config, queries, server,
-    types::{Asset, ExchangeRate},
+    types::{Asset, AssetAmount, ExchangeRate},
     utils,
 };
 use oura::{
@@ -31,7 +31,7 @@ fn wr_transaction(policy_id: &str, asset: &str) -> u64 {
 fn get_wr_transaction(
     transaction: &TransactionRecord,
     script_hash: Vec<u8>,
-) -> Option<(Asset, Asset)> {
+) -> Option<(AssetAmount, AssetAmount)> {
     // Find correct address
     if let Some(output) = transaction
         .outputs
@@ -108,14 +108,18 @@ fn get_wr_transaction(
             );
 
             return Some((
-                Asset {
-                    policy_id: policy1,
-                    name: token1,
+                AssetAmount {
+                    asset: Asset {
+                        policy_id: policy1,
+                        name: token1,
+                    },
                     amount: amount1,
                 },
-                Asset {
-                    policy_id: policy2,
-                    name: token2,
+                AssetAmount {
+                    asset: Asset {
+                        policy_id: policy2,
+                        name: token2,
+                    },
                     amount: amount2,
                 },
             ));
