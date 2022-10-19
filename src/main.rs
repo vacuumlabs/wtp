@@ -16,6 +16,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -52,11 +53,16 @@ async fn main() -> anyhow::Result<()> {
         .with(filter)
         .init();
 
+    {
+        let (sender, _reciever) = broadcast::channel(16);
+        *server::WS_BROADCAST_CHANNEL.write().unwrap() = Some(sender);
+    }
+
     let db_path = args.database.clone();
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let make_service = make_service_fn(move |_conn| {
         let db_path = db_path.clone();
-        let service = service_fn(move |req| server::handle(req, db_path.clone()));
+        let service = service_fn(move |req| server::route(req, db_path.clone()));
         async move { Ok::<_, Infallible>(service) }
     });
     let server = Server::bind(&addr).serve(make_service);
