@@ -33,6 +33,10 @@ struct Args {
     #[arg(short, long)]
     database: String,
 
+    /// Persistency option
+    #[arg(short, long)]
+    persistent: bool,
+
     /// Config file
     #[arg(short, long, default_value_t = String::from("example.toml"))]
     config: String,
@@ -42,7 +46,6 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let config: config::Config = toml::from_str(&fs::read_to_string(&args.config)?)?;
-
     let fmt_layer = tracing_subscriber::fmt::layer();
     let filter = tracing_subscriber::filter::Targets::new()
         .with_target("oura", tracing::Level::WARN)
@@ -71,6 +74,6 @@ async fn main() -> anyhow::Result<()> {
     let db = Database::connect(args.database).await?;
 
     let (_handles, input) = setup::oura_bootstrap(args.start, args.socket)?;
-    sink::start(input, db, &config.pools).await?;
+    sink::start(input, db, &config.pools, args.persistent).await?;
     Ok(())
 }

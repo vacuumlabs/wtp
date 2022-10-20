@@ -128,6 +128,7 @@ pub async fn start(
     input: StageReceiver,
     db: DatabaseConnection,
     pools: &[config::PoolConfig],
+    persistent: bool,
 ) -> anyhow::Result<()> {
     tracing::info!("Starting");
 
@@ -137,22 +138,30 @@ pub async fn start(
         match &event.data {
             EventData::Block(block) => {
                 tracing::debug!("Block: {} {}", block.slot, block.hash);
-                queries::insert_block(block, &db).await?;
+                if persistent {
+                    queries::insert_block(block, &db).await?;
+                }
             }
             EventData::RollBack {
                 block_slot,
                 block_hash,
             } => {
                 tracing::debug!("Rollback, current block: {} {}", block_slot, block_hash);
-                queries::rollback_to_slot(block_slot, &db).await?;
+                if persistent {
+                    queries::rollback_to_slot(block_slot, &db).await?;
+                }
             }
             EventData::Transaction(transaction_record) => {
                 let block_hash = event
                     .context
                     .block_hash
                     .ok_or_else(|| anyhow::anyhow!("No block hash"))?;
-                let tx_id =
-                    queries::insert_transaction(transaction_record, &block_hash, &db).await?;
+                let tx_id = match persistent {
+                    true => Some(
+                        queries::insert_transaction(transaction_record, &block_hash, &db).await?,
+                    ),
+                    _ => None,
+                };
 
                 for pool in pools {
                     let script_hash = hex::decode(pool.script_hash.clone()).unwrap();
@@ -166,8 +175,10 @@ pub async fn start(
                             rate: asset1.amount as f64 / asset2.amount as f64,
                         };
                         server::ws_broadcast(serde_json::to_string(&exchange_rate).unwrap());
-                        queries::insert_price_update(tx_id, script_hash, asset1, asset2, &db)
-                            .await?;
+                        if let Some(tx_id) = tx_id {
+                            queries::insert_price_update(tx_id, script_hash, asset1, asset2, &db)
+                                .await?;
+                        }
                     }
                 }
             }
