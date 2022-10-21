@@ -1,11 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use oura::model::{BlockRecord, TransactionRecord, TxOutputRecord};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbBackend, EntityTrait,
-    FromQueryResult, Order, QueryFilter, QueryOrder, QuerySelect, Set, Statement,
-};
-
 use crate::{
     entity::{
         address, block, price_update, token, token_transfer, transaction, transaction_output,
@@ -13,7 +7,17 @@ use crate::{
     types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate},
     utils::ADA_TOKEN,
 };
+use oura::model::{
+    BlockRecord, OutputAssetRecord, TransactionRecord, TxInputRecord, TxOutputRecord,
+};
+use sea_orm::entity::prelude::*;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbBackend, EntityTrait,
+    FromQueryResult, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
+    Statement,
+};
 
+#[allow(dead_code)]
 pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyhow::Result<()> {
     let previous_hash = hex::decode(block.previous_hash.clone())?;
     let previous_block_model = block::Entity::find()
@@ -34,6 +38,7 @@ pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyho
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Result<()> {
     // We remove all blocks that are after the given slot. Removing based on the rollback event's
     // block_hash might not work because it's affected by the --start option and thus the
@@ -45,6 +50,7 @@ pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Re
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn insert_transaction(
     transaction: &TransactionRecord,
     block_hash: &String,
@@ -101,6 +107,7 @@ pub async fn insert_transaction(
     Ok(transaction_model.id)
 }
 
+#[allow(dead_code)]
 async fn insert_missing_addresses(
     addresses: HashSet<String>,
     db: &DatabaseConnection,
@@ -137,6 +144,7 @@ async fn insert_missing_addresses(
         .collect())
 }
 
+#[allow(dead_code)]
 async fn insert_missing_tokens(
     tokens: HashSet<(Vec<u8>, Vec<u8>)>,
     db: &DatabaseConnection,
@@ -186,6 +194,7 @@ async fn insert_missing_tokens(
         .collect())
 }
 
+#[allow(dead_code)]
 async fn insert_output(
     output: &TxOutputRecord,
     transaction_model: &transaction::Model,
@@ -201,7 +210,7 @@ async fn insert_output(
         tx_id: Set(transaction_model.id),
         index: Set(index),
         address_id: Set(address_model.id),
-        spent: Set(false), // TODO we should set this to true if we observe the UTXO being spent
+        datum_hash: Set(output.datum_hash.clone()), // TODO we should set this to true if we observe the UTXO being spent
         ..Default::default()
     };
     let output_model = output_model.insert(db).await?;
@@ -237,18 +246,19 @@ async fn insert_output(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn insert_price_update(
     tx_id: i64,
-    script_hash: Vec<u8>,
-    asset1: AssetAmount,
-    asset2: AssetAmount,
+    script_hash: &[u8],
+    asset1: &AssetAmount,
+    asset2: &AssetAmount,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
     let token1_model = token::Entity::find()
         .filter(
             token::Column::PolicyId
-                .eq(hex::decode(asset1.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(asset1.asset.name)?)),
+                .eq(hex::decode(&asset1.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
         )
         .one(db)
         .await?
@@ -256,8 +266,8 @@ pub async fn insert_price_update(
     let token2_model = token::Entity::find()
         .filter(
             token::Column::PolicyId
-                .eq(hex::decode(asset2.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(asset2.asset.name)?)),
+                .eq(hex::decode(&asset2.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
         )
         .one(db)
         .await?
@@ -265,7 +275,7 @@ pub async fn insert_price_update(
 
     let price_update_model = price_update::ActiveModel {
         tx_id: Set(tx_id),
-        script_hash: Set(script_hash),
+        script_hash: Set(script_hash.to_vec()),
         token1_id: Set(token1_model.id),
         token2_id: Set(token2_model.id),
         amount1: Set(asset1.amount as i64),
@@ -276,6 +286,7 @@ pub async fn insert_price_update(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<ExchangeRate>> {
     // The raw SQL query here is rather unlucky, but we need to join the token table twice,
     // and the sea-orm version usde by us (dcSpark's fork which implements
@@ -291,6 +302,7 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
         name2: Vec<u8>,
         amount1: i64,
         amount2: i64,
+        timestamp: DateTime,
     }
 
     let raw_exchange_rates: Vec<RawExchangeRate> =
@@ -304,7 +316,9 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
                 t2.policy_id AS policy_id2,
                 t2.name AS name2,
                 amount1,
-                amount2
+                amount2,
+                timestamp
+
             FROM price_update
             JOIN token AS t1 ON t1.id = price_update.token1_id
             JOIN token AS t2 ON t2.id = price_update.token2_id
@@ -382,4 +396,103 @@ pub async fn get_token_price_history(
             timestamp: p.timestamp,
         })
         .collect())
+}
+
+#[allow(dead_code)]
+pub async fn get_utxo_input(
+    inputs: &[TxInputRecord],
+    db: &DatabaseConnection,
+) -> anyhow::Result<Vec<Option<TxOutputRecord>>> {
+    #[derive(FromQueryResult)]
+    struct QueryOutputResult {
+        id: i64,
+        index: i32,
+        datum_hash: Option<String>,
+        hash: Vec<u8>,
+        payload: String,
+    }
+
+    let mut condition = Condition::any();
+    for input in inputs.iter() {
+        condition = condition.add(
+            transaction_output::Column::Index
+                .eq(input.index)
+                .and(transaction::Column::Hash.eq(hex::decode(&input.tx_id)?)),
+        );
+    }
+
+    let output_query = transaction_output::Entity::find()
+        .select_only()
+        .column(transaction_output::Column::Id)
+        .column(transaction_output::Column::Index)
+        .column(transaction_output::Column::DatumHash)
+        .column(transaction::Column::Hash)
+        .column(address::Column::Payload)
+        .join(
+            JoinType::InnerJoin,
+            transaction_output::Relation::Transaction.def(),
+        )
+        .join(
+            JoinType::InnerJoin,
+            transaction_output::Relation::Address.def(),
+        )
+        .filter(condition)
+        .into_model::<QueryOutputResult>()
+        .all(db)
+        .await?;
+
+    let mut result = Vec::new();
+
+    for output in inputs.iter().map(|input| {
+        output_query.iter().find(|output| {
+            input.tx_id == hex::encode(&output.hash) && input.index == (output.index as u64)
+        })
+    }) {
+        result.push(match output {
+            Some(o) => {
+                #[derive(FromQueryResult)]
+                struct QueryTokenResult {
+                    amount: i64,
+                    policy_id: Vec<u8>,
+                    name: Vec<u8>,
+                }
+                let mut assets = Vec::new();
+                let mut out = TxOutputRecord {
+                    address: String::from("address"),
+                    amount: 0,
+                    assets: None,
+                    datum_hash: o.datum_hash.clone(),
+                };
+                let token_query = token_transfer::Entity::find()
+                    .select_only()
+                    .column(token_transfer::Column::Amount)
+                    .column(token::Column::PolicyId)
+                    .column(token::Column::Name)
+                    .join(JoinType::InnerJoin, token_transfer::Relation::Token.def())
+                    .filter(token_transfer::Column::OutputId.eq(o.id))
+                    .into_model::<QueryTokenResult>()
+                    .all(db)
+                    .await?;
+
+                for token in token_query.iter() {
+                    if token.policy_id.is_empty() && token.name.is_empty() {
+                        out.amount = token.amount as u64;
+                    } else {
+                        assets.push(OutputAssetRecord {
+                            policy: hex::encode(&token.policy_id),
+                            asset: hex::encode(&token.name),
+                            asset_ascii: Some(String::from_utf8_lossy(&token.name).to_string()),
+                            amount: token.amount as u64,
+                        })
+                    }
+                }
+                if !assets.is_empty() {
+                    out.assets = Some(assets);
+                }
+                Some(out)
+            }
+            _ => None,
+        });
+    }
+    Ok(result)
 }
