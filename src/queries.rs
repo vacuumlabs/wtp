@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use oura::model::{BlockRecord, TransactionRecord, TxOutputRecord};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbBackend, EntityTrait,
-    FromQueryResult, QueryFilter, Set, Statement,
+    FromQueryResult, Order, QueryFilter, QueryOrder, QuerySelect, Set, Statement,
 };
 
 use crate::{
     entity::{
         address, block, price_update, token, token_transfer, transaction, transaction_output,
     },
-    types::{Asset, ExchangeRate},
+    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate},
     utils::ADA_TOKEN,
 };
 
@@ -240,15 +240,15 @@ async fn insert_output(
 pub async fn insert_price_update(
     tx_id: i64,
     script_hash: Vec<u8>,
-    asset1: Asset,
-    asset2: Asset,
+    asset1: AssetAmount,
+    asset2: AssetAmount,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
     let token1_model = token::Entity::find()
         .filter(
             token::Column::PolicyId
-                .eq(hex::decode(asset1.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(asset1.name)?)),
+                .eq(hex::decode(asset1.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(asset1.asset.name)?)),
         )
         .one(db)
         .await?
@@ -256,8 +256,8 @@ pub async fn insert_price_update(
     let token2_model = token::Entity::find()
         .filter(
             token::Column::PolicyId
-                .eq(hex::decode(asset2.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(asset2.name)?)),
+                .eq(hex::decode(asset2.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(asset2.asset.name)?)),
         )
         .one(db)
         .await?
@@ -324,17 +324,62 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
         .iter()
         .map(|r| ExchangeRate {
             script_hash: hex::encode(r.script_hash.clone()),
-            asset1: Asset {
-                policy_id: hex::encode(r.policy_id1.clone()),
-                name: hex::encode(r.name1.clone()),
+            asset1: AssetAmount {
+                asset: Asset {
+                    policy_id: hex::encode(r.policy_id1.clone()),
+                    name: hex::encode(r.name1.clone()),
+                },
                 amount: r.amount1 as u64,
             },
-            asset2: Asset {
-                policy_id: hex::encode(r.policy_id2.clone()),
-                name: hex::encode(r.name2.clone()),
+            asset2: AssetAmount {
+                asset: Asset {
+                    policy_id: hex::encode(r.policy_id2.clone()),
+                    name: hex::encode(r.name2.clone()),
+                },
                 amount: r.amount2 as u64,
             },
             rate: r.amount1 as f64 / r.amount2 as f64,
+        })
+        .collect())
+}
+
+pub async fn get_assets(db: &DatabaseConnection) -> anyhow::Result<HashMap<i64, Asset>> {
+    let tokens = token::Entity::find().all(db).await?;
+    Ok(tokens
+        .iter()
+        .map(|t| {
+            (
+                t.id,
+                Asset {
+                    policy_id: hex::encode(t.policy_id.clone()),
+                    name: hex::encode(t.name.clone()),
+                },
+            )
+        })
+        .collect())
+}
+
+pub async fn get_token_price_history(
+    asset_id1: i64,
+    asset_id2: i64,
+    count: u64,
+    db: &DatabaseConnection,
+) -> anyhow::Result<Vec<ExchangeHistory>> {
+    let data = price_update::Entity::find()
+        .filter(price_update::Column::Token1Id.eq(asset_id1))
+        .filter(price_update::Column::Token2Id.eq(asset_id2))
+        .order_by(price_update::Column::Timestamp, Order::Desc)
+        .limit(count)
+        .all(db)
+        .await?;
+
+    Ok(data
+        .iter()
+        .map(|p| ExchangeHistory {
+            amount1: p.amount1,
+            amount2: p.amount2,
+            rate: p.amount1 as f64 / p.amount2 as f64,
+            timestamp: p.timestamp,
         })
         .collect())
 }
