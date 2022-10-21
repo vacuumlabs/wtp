@@ -18,7 +18,7 @@ use sea_orm::{
 };
 
 #[allow(dead_code)]
-pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyhow::Result<()> {
+pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyhow::Result<i64> {
     let previous_hash = hex::decode(block.previous_hash.clone())?;
     let previous_block_model = block::Entity::find()
         .filter(block::Column::Hash.eq(previous_hash))
@@ -34,8 +34,8 @@ pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyho
         previous_block_id: Set(previous_block_model.map(|b| b.id)),
         ..Default::default()
     };
-    block_model.insert(db).await?;
-    Ok(())
+    let block_model = block_model.insert(db).await?;
+    Ok(block_model.id)
 }
 
 #[allow(dead_code)]
@@ -53,19 +53,12 @@ pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Re
 #[allow(dead_code)]
 pub async fn insert_transaction(
     transaction: &TransactionRecord,
-    block_hash: &String,
+    block_id: i64,
     db: &DatabaseConnection,
 ) -> anyhow::Result<i64> {
-    let block_hash = hex::decode(block_hash)?;
-    let block_model = block::Entity::find()
-        .filter(block::Column::Hash.eq(block_hash))
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Transaction block not found"))?;
-
     let transaction_model = transaction::ActiveModel {
         hash: Set(hex::decode(transaction.hash.clone())?),
-        block_id: Set(block_model.id),
+        block_id: Set(block_id),
         ..Default::default()
     };
     let transaction_model = transaction_model.insert(db).await?;

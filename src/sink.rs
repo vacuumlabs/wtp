@@ -141,141 +141,141 @@ async fn wr_get_swaps(
         .find(|_| true)
         .unwrap()
         .plutus_data["fields"][0]["int"]
-        .as_i64()
-        .unwrap() as usize;
+        .as_i64();
 
-    // Find main redemeer
-    if let Some(redeemer) = transaction
-        .plutus_redeemers
-        .iter()
-        .flatten()
-        .find(|r| (r.input_idx as usize) == pool_input)
-    {
-        // Extract input list from redemeer
-        let redeemer_map: Vec<usize> = redeemer.plutus_data["fields"][2]["list"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|r| r["int"].as_i64().unwrap() as usize)
-            .collect();
-
-        // Find main transaction
-        let mother = redeemer.plutus_data["fields"][0]["int"].as_i64().unwrap() as usize;
-
-        // Restore inputs
-        let inputs = queries::get_utxo_input(&transaction.inputs.clone().unwrap(), db).await?;
-
-        // Zip outputs with redemeer index
-        for (out, redeemer) in transaction
-            .outputs
+    if let Some(pool_input) = pool_input {
+        // Find main redemeer
+        if let Some(redeemer) = transaction
+            .plutus_redeemers
             .iter()
             .flatten()
-            .skip(1)
-            .zip(redeemer_map)
+            .find(|r| (r.input_idx as usize) == pool_input as usize)
         {
-            if inputs[redeemer].is_none() {
-                tracing::info!("Missing UTxO on {}", transaction.hash);
-                continue;
-            }
-            // pair input with output
-            let inp = inputs[redeemer].clone().unwrap();
-            // tracing::info!("{:?} -> {:?} | {:?}", redeemer, out, inp);
+            // Extract input list from redemeer
+            let redeemer_map: Vec<usize> = redeemer.plutus_data["fields"][2]["list"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| r["int"].as_i64().unwrap() as usize)
+                .collect();
 
-            // get information about swap from pool plutus data
-            if let Some(datum) = transaction
-                .plutus_data
+            // Find main transaction
+            let mother = redeemer.plutus_data["fields"][0]["int"].as_i64().unwrap() as usize;
+
+            // Restore inputs
+            let inputs = queries::get_utxo_input(&transaction.inputs.clone().unwrap(), db).await?;
+
+            // Zip outputs with redemeer index
+            for (out, redeemer) in transaction
+                .outputs
                 .iter()
                 .flatten()
-                .find(|p| p.datum_hash == inputs[mother].clone().unwrap().datum_hash.unwrap())
+                .skip(1)
+                .zip(redeemer_map)
             {
-                let plutus_datum = wr_extract_plutus_datum(&datum.plutus_data["fields"][1]);
-                let amount1;
-                let amount2;
+                if inputs[redeemer].is_none() {
+                    tracing::info!("Missing UTxO on {}", transaction.hash);
+                    continue;
+                }
+                // pair input with output
+                let inp = inputs[redeemer].clone().unwrap();
+                // tracing::info!("{:?} -> {:?} | {:?}", redeemer, out, inp);
 
-                // get actual plutus data
-                let datum = transaction
-                    .plutus_data
-                    .iter()
-                    .flatten()
-                    .find(|p| p.datum_hash == inp.datum_hash.as_ref().unwrap().clone())
-                    .unwrap();
+                // get information about swap from pool plutus data
+                if let Some(datum) =
+                    transaction.plutus_data.iter().flatten().find(|p| {
+                        p.datum_hash == inputs[mother].clone().unwrap().datum_hash.unwrap()
+                    })
+                {
+                    let plutus_datum = wr_extract_plutus_datum(&datum.plutus_data["fields"][1]);
+                    let amount1;
+                    let amount2;
 
-                // identify operation 0 - swap
-                let operation = datum.plutus_data["fields"][1]["constructor"]
-                    .as_i64()
-                    .unwrap();
+                    // get actual plutus data
+                    let datum = transaction
+                        .plutus_data
+                        .iter()
+                        .flatten()
+                        .find(|p| p.datum_hash == inp.datum_hash.as_ref().unwrap().clone())
+                        .unwrap();
 
-                if operation == 0 {
-                    let direction = datum.plutus_data["fields"][1]["fields"][0]["constructor"]
+                    // identify operation 0 - swap
+                    let operation = datum.plutus_data["fields"][1]["constructor"]
                         .as_i64()
                         .unwrap();
 
-                    if direction == 0 {
-                        amount1 = get_amount(
-                            &inp,
-                            &plutus_datum.first.asset.policy_id,
-                            &plutus_datum.first.asset.name,
-                        ) - wr_transaction(
-                            &plutus_datum.first.asset.policy_id,
-                            &plutus_datum.first.asset.name,
-                            WR_ADA_SWAP_IN,
-                        );
-                        amount2 = get_amount(
-                            out,
-                            &plutus_datum.second.asset.policy_id,
-                            &plutus_datum.second.asset.name,
-                        ) - wr_transaction(
-                            &plutus_datum.second.asset.policy_id,
-                            &plutus_datum.second.asset.name,
-                            WR_ADA_SWAP_OUT,
-                        );
-                    } else {
-                        amount1 = get_amount(
-                            out,
-                            &plutus_datum.first.asset.policy_id,
-                            &plutus_datum.first.asset.name,
-                        ) - wr_transaction(
-                            &plutus_datum.first.asset.policy_id,
-                            &plutus_datum.first.asset.name,
-                            WR_ADA_SWAP_OUT,
-                        );
-                        amount2 = get_amount(
-                            &inp,
-                            &plutus_datum.second.asset.policy_id,
-                            &plutus_datum.second.asset.name,
-                        ) - wr_transaction(
-                            &plutus_datum.second.asset.policy_id,
-                            &plutus_datum.second.asset.name,
-                            WR_ADA_SWAP_IN,
-                        );
-                    }
+                    if operation == 0 {
+                        let direction = datum.plutus_data["fields"][1]["fields"][0]["constructor"]
+                            .as_i64()
+                            .unwrap();
 
-                    swaps.push(Swap {
-                        first: AssetAmount {
-                            asset: Asset {
-                                policy_id: plutus_datum.first.asset.policy_id,
-                                name: plutus_datum.first.asset.name,
+                        if direction == 0 {
+                            amount1 = get_amount(
+                                &inp,
+                                &plutus_datum.first.asset.policy_id,
+                                &plutus_datum.first.asset.name,
+                            ) - wr_transaction(
+                                &plutus_datum.first.asset.policy_id,
+                                &plutus_datum.first.asset.name,
+                                WR_ADA_SWAP_IN,
+                            );
+                            amount2 = get_amount(
+                                out,
+                                &plutus_datum.second.asset.policy_id,
+                                &plutus_datum.second.asset.name,
+                            ) - wr_transaction(
+                                &plutus_datum.second.asset.policy_id,
+                                &plutus_datum.second.asset.name,
+                                WR_ADA_SWAP_OUT,
+                            );
+                        } else {
+                            amount1 = get_amount(
+                                out,
+                                &plutus_datum.first.asset.policy_id,
+                                &plutus_datum.first.asset.name,
+                            ) - wr_transaction(
+                                &plutus_datum.first.asset.policy_id,
+                                &plutus_datum.first.asset.name,
+                                WR_ADA_SWAP_OUT,
+                            );
+                            amount2 = get_amount(
+                                &inp,
+                                &plutus_datum.second.asset.policy_id,
+                                &plutus_datum.second.asset.name,
+                            ) - wr_transaction(
+                                &plutus_datum.second.asset.policy_id,
+                                &plutus_datum.second.asset.name,
+                                WR_ADA_SWAP_IN,
+                            );
+                        }
+
+                        swaps.push(Swap {
+                            first: AssetAmount {
+                                asset: Asset {
+                                    policy_id: plutus_datum.first.asset.policy_id,
+                                    name: plutus_datum.first.asset.name,
+                                },
+                                amount: amount1,
                             },
-                            amount: amount1,
-                        },
-                        second: AssetAmount {
-                            asset: Asset {
-                                policy_id: plutus_datum.second.asset.policy_id,
-                                name: plutus_datum.second.asset.name,
+                            second: AssetAmount {
+                                asset: Asset {
+                                    policy_id: plutus_datum.second.asset.policy_id,
+                                    name: plutus_datum.second.asset.name,
+                                },
+                                amount: amount2,
                             },
-                            amount: amount2,
-                        },
-                        direction: direction == 0,
-                    })
+                            direction: direction == 0,
+                        })
+                    } else {
+                        tracing::info!("Operation is not swap");
+                    }
                 } else {
-                    tracing::info!("Operation is not swap");
+                    tracing::info!("Datum not found");
                 }
-            } else {
-                tracing::info!("Datum not found");
             }
+        } else {
+            tracing::info!("Redeemer not found");
         }
-    } else {
-        tracing::info!("Redeemer not found");
     }
     Ok(swaps)
 }
@@ -304,25 +304,40 @@ pub async fn start(
 
             EventData::Block(block) => {
                 tracing::debug!("Block: {} {}", block.slot, block.hash);
-                //queries::insert_block(block, &db).await?;
-                if persistent {
-                    queries::insert_block(block, &db).await?;
-                }
+
+                let block_id = match persistent {
+                    true => Some(queries::insert_block(block, &db).await?),
+                    _ => None,
+                };
 
                 for transaction_record in block.transactions.iter().flatten() {
                     let watched = pools.iter().any(|p| {
+                        let pool_hash = hex::decode(&p.script_hash).unwrap();
+                        let request_hash = hex::decode(&p.request_hash).unwrap();
+                        let vesting_hash = hex::decode(&p.vesting_hash).unwrap();
+
                         transaction_record.outputs.iter().flatten().any(|o| {
-                            let hash = utils::get_payment_hash(&o.address);
-                            //tracing::info!("{:?} {:?}", hash, hex::decode(&p.script_hash).unwrap());
-                            hash.is_some() && hex::decode(&p.script_hash).unwrap() == hash.unwrap()
+                            let hash = utils::get_payment_hash(&o.address).unwrap_or_default();
+
+                            pool_hash == hash
+                                || request_hash == hash
+                                || vesting_hash == hash
+                                || o.address == p.address
                         })
                     });
 
                     let tx_id = match (persistent, watched) {
-                        (true, true) => Some(
-                            queries::insert_transaction(transaction_record, &block.hash, &db)
-                                .await?, //queries::insert_raw_transaction(transaction_record, &block.hash, &db).await?
-                        ),
+                        (true, true) => {
+                            tracing::info!("{:?}", transaction_record.inputs);
+                            Some(
+                                queries::insert_transaction(
+                                    transaction_record,
+                                    block_id.unwrap(),
+                                    &db,
+                                )
+                                .await?,
+                            )
+                        }
                         _ => None,
                     };
 

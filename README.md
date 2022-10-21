@@ -33,3 +33,8 @@ sea-orm-cli migrate generate "your_migration_name"
 cargo migrate up
 sea-orm-cli generate entity -o src/entity
 ```
+
+```bash
+# Ideal run parametres for WR
+cargo run -- --socket localhost:3001 --database $DATABASE_URL --persistent  --start 57270168:17a26b5607a6f61fe89bf73a7a242ff4fa6dd6c667f3b2d6fc56bbcad644e90b
+```
