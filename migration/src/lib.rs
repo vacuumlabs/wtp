@@ -9,6 +9,7 @@ mod m20221010_123828_create_block_table;
 mod m20221013_162928_create_price_update_table;
 mod m20221013_194016_add_datum_hash;
 mod m20221014_125218_create_indices;
+mod m20221021_115605_add_indices_to_foreign_keys;
 
 pub struct Migrator;
 
