@@ -370,18 +370,18 @@ pub async fn start(
                                     asset1,
                                     asset2
                                 );
-                                queries::insert_price_update(
-                                    tx_id,
-                                    &script_hash,
-                                    &asset1,
-                                    &asset2,
-                                    &db,
-                                )
-                                .await?;
                             }
-                            let swaps = wr_get_swaps(transaction_record, &db).await?;
-                            tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);
                         }
+                        let swaps = wr_get_swaps(transaction_record, &db).await.unwrap();                            
+                        tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);
+                        for swap in swaps.iter() {                                
+                            queries::insert_swap(
+                                &swap.first.clone(),
+                                &swap.second.clone(),
+                                &db,
+                            ).await;
+                        }
+                    
                     }
                 }
                 tracing::debug!("Block ends");

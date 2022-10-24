@@ -280,6 +280,15 @@ pub async fn insert_price_update(
 }
 
 #[allow(dead_code)]
+pub async fn insert_swap(
+    _asset1: &AssetAmount,
+    _asset2: &AssetAmount,
+    _db: &DatabaseConnection,
+){
+    todo!();
+}
+
+#[allow(dead_code)]
 pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<ExchangeRate>> {
     // The raw SQL query here is rather unlucky, but we need to join the token table twice,
     // and the sea-orm version usde by us (dcSpark's fork which implements
