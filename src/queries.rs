@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     entity::{
-        address, block, price_update, token, token_transfer, transaction, transaction_output, swap
+        address, block, price_update, swap, token, token_transfer, transaction, transaction_output,
     },
     types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate},
     utils::ADA_TOKEN,
@@ -287,36 +287,36 @@ pub async fn insert_swap(
     asset2: &AssetAmount,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-        let token1_model = token::Entity::find()
-            .filter(
-                token::Column::PolicyId
-                    .eq(hex::decode(&asset1.asset.policy_id)?)
-                    .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
-            )
-            .one(db)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
-        let token2_model = token::Entity::find()
-            .filter(
-                token::Column::PolicyId
-                    .eq(hex::decode(&asset2.asset.policy_id)?)
-                    .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
-            )
-            .one(db)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
-    
-        let swap_model = swap::ActiveModel {
-            tx_id: Set(tx_id),
-            script_hash: Set(script_hash.to_vec()),
-            token1_id: Set(token1_model.id),
-            token2_id: Set(token2_model.id),
-            amount1: Set(asset1.amount as i64),
-            amount2: Set(asset2.amount as i64),
-            ..Default::default()
-        };
-        swap_model.insert(db).await?;
-        Ok(())
+    let token1_model = token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(hex::decode(&asset1.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
+    let token2_model = token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(hex::decode(&asset2.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+
+    let swap_model = swap::ActiveModel {
+        tx_id: Set(tx_id),
+        script_hash: Set(script_hash.to_vec()),
+        token1_id: Set(token1_model.id),
+        token2_id: Set(token2_model.id),
+        amount1: Set(asset1.amount as i64),
+        amount2: Set(asset2.amount as i64),
+        ..Default::default()
+    };
+    swap_model.insert(db).await?;
+    Ok(())
 }
 
 #[allow(dead_code)]

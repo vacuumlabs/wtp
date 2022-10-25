@@ -32,11 +32,7 @@ impl MigrationTrait for Migration {
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .col(ColumnDef::new(Swap::ScriptHash).binary().not_null())
-                    .col(
-                        ColumnDef::new(Swap::Token1Id)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Swap::Token1Id).big_integer().not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-swap-token1_id")
@@ -44,11 +40,7 @@ impl MigrationTrait for Migration {
                             .to(Token::Table, Token::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(
-                        ColumnDef::new(Swap::Token2Id)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Swap::Token2Id).big_integer().not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-swap-token2_id")
@@ -56,16 +48,8 @@ impl MigrationTrait for Migration {
                             .to(Token::Table, Token::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(
-                        ColumnDef::new(Swap::Amount1)
-                            .big_unsigned()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(Swap::Amount2)
-                            .big_unsigned()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Swap::Amount1).big_unsigned().not_null())
+                    .col(ColumnDef::new(Swap::Amount2).big_unsigned().not_null())
                     .col(
                         ColumnDef::new(Swap::Timestamp)
                             .timestamp()

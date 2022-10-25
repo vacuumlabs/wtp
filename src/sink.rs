@@ -371,21 +371,22 @@ pub async fn start(
                                     asset2
                                 );
                             }
-                        
-                            let swaps = wr_get_swaps(transaction_record, &db).await.unwrap();                            
-                            if let Some(tx_id) = tx_id{                        
-                                for swap in swaps.iter() {                                
+
+                            let swaps = wr_get_swaps(transaction_record, &db).await.unwrap();
+                            if let Some(tx_id) = tx_id {
+                                for swap in swaps.iter() {
                                     queries::insert_swap(
                                         tx_id,
                                         &script_hash,
                                         &swap.first,
                                         &swap.second,
                                         &db,
-                                    ).await?;
+                                    )
+                                    .await?;
                                 }
                             }
-                            tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);   
-                        }                 
+                            tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);
+                        }
                     }
                 }
                 tracing::debug!("Block ends");
