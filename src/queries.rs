@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     entity::{
-        address, block, price_update, token, token_transfer, transaction, transaction_output,
+        address, block, price_update, token, token_transfer, transaction, transaction_output, swap
     },
     types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate},
     utils::ADA_TOKEN,
@@ -281,11 +281,42 @@ pub async fn insert_price_update(
 
 #[allow(dead_code)]
 pub async fn insert_swap(
-    _asset1: &AssetAmount,
-    _asset2: &AssetAmount,
-    _db: &DatabaseConnection,
-){
-    todo!();
+    tx_id: i64,
+    script_hash: &[u8],
+    asset1: &AssetAmount,
+    asset2: &AssetAmount,
+    db: &DatabaseConnection,
+) -> anyhow::Result<()> {
+        let token1_model = token::Entity::find()
+            .filter(
+                token::Column::PolicyId
+                    .eq(hex::decode(&asset1.asset.policy_id)?)
+                    .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
+            )
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
+        let token2_model = token::Entity::find()
+            .filter(
+                token::Column::PolicyId
+                    .eq(hex::decode(&asset2.asset.policy_id)?)
+                    .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
+            )
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+    
+        let swap_model = swap::ActiveModel {
+            tx_id: Set(tx_id),
+            script_hash: Set(script_hash.to_vec()),
+            token1_id: Set(token1_model.id),
+            token2_id: Set(token2_model.id),
+            amount1: Set(asset1.amount as i64),
+            amount2: Set(asset2.amount as i64),
+            ..Default::default()
+        };
+        swap_model.insert(db).await?;
+        Ok(())
 }
 
 #[allow(dead_code)]
@@ -385,6 +416,31 @@ pub async fn get_token_price_history(
         .filter(price_update::Column::Token1Id.eq(asset_id1))
         .filter(price_update::Column::Token2Id.eq(asset_id2))
         .order_by(price_update::Column::Timestamp, Order::Desc)
+        .limit(count)
+        .all(db)
+        .await?;
+
+    Ok(data
+        .iter()
+        .map(|p| ExchangeHistory {
+            amount1: p.amount1,
+            amount2: p.amount2,
+            rate: p.amount1 as f64 / p.amount2 as f64,
+            timestamp: p.timestamp,
+        })
+        .collect())
+}
+
+pub async fn get_swap_history(
+    asset_id1: i64,
+    asset_id2: i64,
+    count: u64,
+    db: &DatabaseConnection,
+) -> anyhow::Result<Vec<ExchangeHistory>> {
+    let data = price_update::Entity::find()
+        .filter(price_update::Column::Token1Id.eq(asset_id1))
+        .filter(price_update::Column::Token2Id.eq(asset_id2))
+        .order_by(price_update::Column::Timestamp, Order::Asc)
         .limit(count)
         .all(db)
         .await?;

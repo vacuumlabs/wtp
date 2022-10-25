@@ -27,6 +27,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20221013_162928_create_price_update_table::Migration),
             Box::new(m20221013_194016_add_datum_hash::Migration),
             Box::new(m20221014_125218_create_indices::Migration),
+            Box::new(m20221021_115605_add_indices_to_foreign_keys::Migration),
             Box::new(m20221024_135934_create_swap_table::Migration),
         ]
     }

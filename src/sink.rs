@@ -328,7 +328,7 @@ pub async fn start(
 
                     let tx_id = match (persistent, watched) {
                         (true, true) => {
-                            tracing::info!("{:?}", transaction_record.inputs);
+                            tracing::info!("tx_id {:?}", transaction_record.inputs);
                             Some(
                                 queries::insert_transaction(
                                     transaction_record,
@@ -365,23 +365,27 @@ pub async fn start(
                                 .await?;
 
                                 tracing::info!(
-                                    "{} {:?} {:?}",
+                                    "price update: {} {:?} {:?}",
                                     transaction_record.hash,
                                     asset1,
                                     asset2
                                 );
                             }
-                        }
-                        let swaps = wr_get_swaps(transaction_record, &db).await.unwrap();                            
-                        tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);
-                        for swap in swaps.iter() {                                
-                            queries::insert_swap(
-                                &swap.first.clone(),
-                                &swap.second.clone(),
-                                &db,
-                            ).await;
-                        }
-                    
+                        
+                            let swaps = wr_get_swaps(transaction_record, &db).await.unwrap();                            
+                            if let Some(tx_id) = tx_id{                        
+                                for swap in swaps.iter() {                                
+                                    queries::insert_swap(
+                                        tx_id,
+                                        &script_hash,
+                                        &swap.first,
+                                        &swap.second,
+                                        &db,
+                                    ).await?;
+                                }
+                            }
+                            tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);   
+                        }                 
                     }
                 }
                 tracing::debug!("Block ends");
