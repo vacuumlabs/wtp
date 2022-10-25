@@ -50,12 +50,6 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Swap::Amount1).big_unsigned().not_null())
                     .col(ColumnDef::new(Swap::Amount2).big_unsigned().not_null())
-                    .col(
-                        ColumnDef::new(Swap::Timestamp)
-                            .timestamp()
-                            .not_null()
-                            .extra("DEFAULT CURRENT_TIMESTAMP".to_owned()),
-                    )
                     .to_owned(),
             )
             .await
@@ -79,5 +73,4 @@ pub enum Swap {
     Token2Id,
     Amount1,
     Amount2,
-    Timestamp,
 }

@@ -372,9 +372,9 @@ pub async fn start(
                                 );
                             }
 
-                            let swaps = wr_get_swaps(transaction_record, &db).await.unwrap();
+                            let swaps = wr_get_swaps(transaction_record, &db).await;
                             if let Some(tx_id) = tx_id {
-                                for swap in swaps.iter() {
+                                for swap in swaps.iter().flatten() {
                                     queries::insert_swap(
                                         tx_id,
                                         &script_hash,
