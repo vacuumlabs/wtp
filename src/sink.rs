@@ -380,6 +380,7 @@ pub async fn start(
                                         &script_hash,
                                         &swap.first,
                                         &swap.second,
+                                        swap.direction,
                                         &db,
                                     )
                                     .await?;

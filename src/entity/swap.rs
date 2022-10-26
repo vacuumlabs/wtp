@@ -13,6 +13,7 @@ pub struct Model {
     pub token2_id: i64,
     pub amount1: i64,
     pub amount2: i64,
+    pub direction: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

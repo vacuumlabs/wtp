@@ -288,6 +288,7 @@ pub async fn insert_swap(
     script_hash: &[u8],
     asset1: &AssetAmount,
     asset2: &AssetAmount,
+    direction: bool,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
     let token1_model = token::Entity::find()
@@ -316,6 +317,7 @@ pub async fn insert_swap(
         token2_id: Set(token2_model.id),
         amount1: Set(asset1.amount as i64),
         amount2: Set(asset2.amount as i64),
+        direction: Set(direction),
         ..Default::default()
     };
     swap_model.insert(db).await?;
@@ -463,7 +465,7 @@ pub async fn get_swap_history(
                     asset: asset2.to_owned(),
                     amount: p.amount2 as u64,
                 },
-                direction: true, // todo DB migration
+                direction: p.direction,
             })
             .collect())
     } else {

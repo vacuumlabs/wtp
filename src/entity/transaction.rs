@@ -24,10 +24,10 @@ pub enum Relation {
     Block,
     #[sea_orm(has_many = "super::price_update::Entity")]
     PriceUpdate,
-    #[sea_orm(has_many = "super::swap::Entity")]
-    Swap,
     #[sea_orm(has_many = "super::transaction_output::Entity")]
     TransactionOutput,
+    #[sea_orm(has_many = "super::swap::Entity")]
+    Swap,
 }
 
 impl Related<super::block::Entity> for Entity {
@@ -42,15 +42,15 @@ impl Related<super::price_update::Entity> for Entity {
     }
 }
 
-impl Related<super::swap::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Swap.def()
-    }
-}
-
 impl Related<super::transaction_output::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TransactionOutput.def()
+    }
+}
+
+impl Related<super::swap::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Swap.def()
     }
 }
 
