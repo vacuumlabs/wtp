@@ -36,4 +36,12 @@ pub struct Swap {
     pub direction: bool, // false - buy, tru - sell
 }
 
+#[derive(Debug, Serialize)]
+pub struct SwapHistory {
+    pub amount1: i64,
+    pub amount2: i64,
+    pub tx_id: i64,
+    pub direction: String,
+}
+
 pub type PlutusData = Swap;

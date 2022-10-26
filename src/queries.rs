@@ -7,7 +7,7 @@ use crate::{
     entity::{
         address, block, price_update, swap, token, token_transfer, transaction, transaction_output,
     },
-    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate, Swap},
+    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate, SwapHistory},
     utils::ADA_TOKEN,
 };
 use oura::model::{
@@ -441,7 +441,7 @@ pub async fn get_swap_history(
     asset_id2: i64,
     count: u64,
     db: &DatabaseConnection,
-) -> anyhow::Result<Vec<Swap>> {
+) -> anyhow::Result<Vec<SwapHistory>> {
     let data = swap::Entity::find()
         .filter(swap::Column::Token1Id.eq(asset_id1))
         .filter(swap::Column::Token2Id.eq(asset_id2))
@@ -451,26 +451,18 @@ pub async fn get_swap_history(
         .all(db)
         .await?;
 
-    let assets = get_assets(db).await?;
-
-    if let (Some(asset1), Some(asset2)) = (assets.get(&asset_id1), assets.get(&asset_id2)) {
-        Ok(data
-            .iter()
-            .map(|p| Swap {
-                first: AssetAmount {
-                    asset: asset1.to_owned(),
-                    amount: p.amount1 as u64,
-                },
-                second: AssetAmount {
-                    asset: asset2.to_owned(),
-                    amount: p.amount2 as u64,
-                },
-                direction: p.direction,
-            })
-            .collect())
-    } else {
-        Ok(vec![] as Vec<Swap>)
-    }
+    Ok(data
+        .iter()
+        .map(|p| SwapHistory {
+            amount1: p.amount1,
+            amount2: p.amount2,
+            tx_id: p.tx_id,
+            direction: match p.direction {
+                true => "Buy".to_string(),
+                false => "Sell".to_string(),
+            },
+        })
+        .collect())
 }
 
 #[allow(dead_code)]
