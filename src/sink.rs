@@ -348,7 +348,7 @@ pub async fn start(
                         {
                             let exchange_rate = ExchangeRate {
                                 asset1: queries::get_token_id(&asset1.asset, &db).await?,
-                                asset2: queries::get_token_id(&asset1.asset, &db).await?,
+                                asset2: queries::get_token_id(&asset2.asset, &db).await?,
                                 script_hash: pool.script_hash.clone(),
                                 rate: asset1.amount as f64 / asset2.amount as f64,
                             };
