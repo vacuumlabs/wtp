@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 use crate::{
     entity::{
@@ -464,7 +467,7 @@ pub async fn get_swap_history(
             })
             .collect())
     } else {
-        panic!("invalid token id")
+        Ok(vec![] as Vec<Swap>)
     }
 }
 
