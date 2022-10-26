@@ -15,8 +15,8 @@ pub struct AssetAmount {
 #[derive(Debug, Serialize, Clone)]
 pub struct ExchangeRate {
     pub script_hash: String,
-    pub asset1: AssetAmount,
-    pub asset2: AssetAmount,
+    pub asset1: i64,
+    pub asset2: i64,
     pub rate: f64,
 }
 
