@@ -250,30 +250,14 @@ pub async fn insert_price_update(
     asset2: &AssetAmount,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-    let token1_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset1.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
-    let token2_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset2.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+    let token1_id = get_token_id(&asset1.asset, db).await?;
+    let token2_id = get_token_id(&asset2.asset, db).await?;
 
     let price_update_model = price_update::ActiveModel {
         tx_id: Set(tx_id),
         script_hash: Set(script_hash.to_vec()),
-        token1_id: Set(token1_model.id),
-        token2_id: Set(token2_model.id),
+        token1_id: Set(token1_id),
+        token2_id: Set(token2_id),
         amount1: Set(asset1.amount as i64),
         amount2: Set(asset2.amount as i64),
         ..Default::default()
@@ -291,30 +275,14 @@ pub async fn insert_swap(
     direction: bool,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-    let token1_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset1.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
-    let token2_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset2.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+    let token1_id = get_token_id(&asset1.asset, db).await?;
+    let token2_id = get_token_id(&asset2.asset, db).await?;
 
     let swap_model = swap::ActiveModel {
         tx_id: Set(tx_id),
         script_hash: Set(script_hash.to_vec()),
-        token1_id: Set(token1_model.id),
-        token2_id: Set(token2_model.id),
+        token1_id: Set(token1_id),
+        token2_id: Set(token2_id),
         amount1: Set(asset1.amount as i64),
         amount2: Set(asset2.amount as i64),
         direction: Set(direction),
@@ -322,6 +290,19 @@ pub async fn insert_swap(
     };
     swap_model.insert(db).await?;
     Ok(())
+}
+
+async fn get_token_id(asset: &Asset, db: &DatabaseConnection) -> anyhow::Result<i64> {
+    Ok(token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(hex::decode(&asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset.name)?)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?
+        .id)
 }
 
 #[allow(dead_code)]
