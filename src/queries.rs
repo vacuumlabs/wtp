@@ -1,10 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 use crate::{
     entity::{
-        address, block, price_update, token, token_transfer, transaction, transaction_output,
+        address, block, price_update, swap, token, token_transfer, transaction, transaction_output,
     },
-    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate},
+    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate, SwapHistory},
     utils::ADA_TOKEN,
 };
 use oura::model::{
@@ -280,6 +283,48 @@ pub async fn insert_price_update(
 }
 
 #[allow(dead_code)]
+pub async fn insert_swap(
+    tx_id: i64,
+    script_hash: &[u8],
+    asset1: &AssetAmount,
+    asset2: &AssetAmount,
+    direction: bool,
+    db: &DatabaseConnection,
+) -> anyhow::Result<()> {
+    let token1_model = token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(hex::decode(&asset1.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
+    let token2_model = token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(hex::decode(&asset2.asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+
+    let swap_model = swap::ActiveModel {
+        tx_id: Set(tx_id),
+        script_hash: Set(script_hash.to_vec()),
+        token1_id: Set(token1_model.id),
+        token2_id: Set(token2_model.id),
+        amount1: Set(asset1.amount as i64),
+        amount2: Set(asset2.amount as i64),
+        direction: Set(direction),
+        ..Default::default()
+    };
+    swap_model.insert(db).await?;
+    Ok(())
+}
+
+#[allow(dead_code)]
 pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<ExchangeRate>> {
     // The raw SQL query here is rather unlucky, but we need to join the token table twice,
     // and the sea-orm version usde by us (dcSpark's fork which implements
@@ -387,6 +432,35 @@ pub async fn get_token_price_history(
             amount2: p.amount2,
             rate: p.amount1 as f64 / p.amount2 as f64,
             timestamp: p.timestamp,
+        })
+        .collect())
+}
+
+pub async fn get_swap_history(
+    asset_id1: i64,
+    asset_id2: i64,
+    count: u64,
+    db: &DatabaseConnection,
+) -> anyhow::Result<Vec<SwapHistory>> {
+    let data = swap::Entity::find()
+        .filter(swap::Column::Token1Id.eq(asset_id1))
+        .filter(swap::Column::Token2Id.eq(asset_id2))
+        .order_by(swap::Column::TxId, Order::Desc)
+        .limit(count)
+        .order_by(swap::Column::TxId, Order::Asc)
+        .all(db)
+        .await?;
+
+    Ok(data
+        .iter()
+        .map(|p| SwapHistory {
+            amount1: p.amount1,
+            amount2: p.amount2,
+            tx_id: p.tx_id,
+            direction: match p.direction {
+                true => "Buy".to_string(),
+                false => "Sell".to_string(),
+            },
         })
         .collect())
 }

@@ -159,6 +159,32 @@ async fn get_mean_history(
     Ok(serde_json::to_string(&data)?)
 }
 
+async fn get_swap_history(
+    path: &str,
+    query: Option<&str>,
+    db_path: String,
+) -> anyhow::Result<String> {
+    let count = match query {
+        Some(query) => {
+            let parts: Vec<&str> = query.splitn(2, '=').collect();
+            if parts.len() != 2 || parts[0] != "count" {
+                return Err(anyhow::anyhow!("Bad query"));
+            }
+            parts[1].parse::<u64>()?
+        }
+        None => 10,
+    };
+    let path: Vec<&str> = path.split('/').collect();
+    if path.len() != 4 {
+        return Err(anyhow::anyhow!("Bad path"));
+    }
+    let asset_id1 = path[2].parse::<i64>()?;
+    let asset_id2 = path[3].parse::<i64>()?;
+    let db = Database::connect(db_path).await?;
+    let data = queries::get_swap_history(asset_id1, asset_id2, count, &db).await?;
+    Ok(serde_json::to_string(&data)?)
+}
+
 pub async fn route(req: Request<Body>, db_path: String) -> anyhow::Result<Response<String>> {
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/health") => Response::builder()
@@ -174,6 +200,9 @@ pub async fn route(req: Request<Body>, db_path: String) -> anyhow::Result<Respon
         (&Method::GET, path) if path.starts_with("/mean_history/") => Response::builder()
             .header("Content-Type", "application/json")
             .body(get_mean_history(path, req.uri().query(), db_path).await?),
+        (&Method::GET, path) if path.starts_with("/asset_swap/") => Response::builder()
+            .header("Content-Type", "application/json")
+            .body(get_swap_history(path, req.uri().query(), db_path).await?),
         _ => Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(String::from("404 Not found")),
