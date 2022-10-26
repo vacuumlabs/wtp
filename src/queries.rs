@@ -420,7 +420,7 @@ pub async fn get_token_price_history(
     let data = price_update::Entity::find()
         .filter(price_update::Column::Token1Id.eq(asset_id1))
         .filter(price_update::Column::Token2Id.eq(asset_id2))
-        .order_by(price_update::Column::Timestamp, Order::Desc)
+        .order_by(price_update::Column::TxId, Order::Desc)
         .limit(count)
         .all(db)
         .await?;
@@ -431,7 +431,7 @@ pub async fn get_token_price_history(
             amount1: p.amount1,
             amount2: p.amount2,
             rate: p.amount1 as f64 / p.amount2 as f64,
-            timestamp: p.timestamp,
+            tx_id: p.tx_id,
         })
         .collect())
 }

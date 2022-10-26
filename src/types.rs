@@ -1,4 +1,3 @@
-use sea_orm::prelude::DateTime;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone)]
@@ -26,7 +25,7 @@ pub struct ExchangeHistory {
     pub amount1: i64,
     pub amount2: i64,
     pub rate: f64,
-    pub timestamp: DateTime,
+    pub tx_id: i64,
 }
 
 #[derive(Debug, Serialize)]

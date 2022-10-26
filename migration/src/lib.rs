@@ -11,6 +11,7 @@ mod m20221013_194016_add_datum_hash;
 mod m20221014_125218_create_indices;
 mod m20221021_115605_add_indices_to_foreign_keys;
 mod m20221024_135934_create_swap_table;
+mod m20221026_160617_drop_timestamp_column;
 
 pub struct Migrator;
 
@@ -29,6 +30,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20221014_125218_create_indices::Migration),
             Box::new(m20221021_115605_add_indices_to_foreign_keys::Migration),
             Box::new(m20221024_135934_create_swap_table::Migration),
+            Box::new(m20221026_160617_drop_timestamp_column::Migration),
         ]
     }
 }
