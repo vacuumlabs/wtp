@@ -4,7 +4,7 @@ use crate::{
     entity::{
         address, block, price_update, swap, token, token_transfer, transaction, transaction_output,
     },
-    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate},
+    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate, Swap},
     utils::ADA_TOKEN,
 };
 use oura::model::{
@@ -436,24 +436,36 @@ pub async fn get_swap_history(
     asset_id2: i64,
     count: u64,
     db: &DatabaseConnection,
-) -> anyhow::Result<Vec<ExchangeHistory>> {
-    let data = price_update::Entity::find()
-        .filter(price_update::Column::Token1Id.eq(asset_id1))
-        .filter(price_update::Column::Token2Id.eq(asset_id2))
-        .order_by(price_update::Column::Timestamp, Order::Asc)
+) -> anyhow::Result<Vec<Swap>> {
+    let data = swap::Entity::find()
+        .filter(swap::Column::Token1Id.eq(asset_id1))
+        .filter(swap::Column::Token2Id.eq(asset_id2))
+        .order_by(swap::Column::TxId, Order::Desc)
         .limit(count)
+        .order_by(swap::Column::TxId, Order::Asc)
         .all(db)
         .await?;
 
-    Ok(data
-        .iter()
-        .map(|p| ExchangeHistory {
-            amount1: p.amount1,
-            amount2: p.amount2,
-            rate: p.amount1 as f64 / p.amount2 as f64,
-            timestamp: p.timestamp,
-        })
-        .collect())
+    let assets = get_assets(db).await?;
+
+    if let (Some(asset1), Some(asset2)) = (assets.get(&asset_id1), assets.get(&asset_id2)) {
+        Ok(data
+            .iter()
+            .map(|p| Swap {
+                first: AssetAmount {
+                    asset: asset1.to_owned(),
+                    amount: p.amount1 as u64,
+                },
+                second: AssetAmount {
+                    asset: asset2.to_owned(),
+                    amount: p.amount2 as u64,
+                },
+                direction: true, // todo DB migration
+            })
+            .collect())
+    } else {
+        panic!("invalid token id")
+    }
 }
 
 #[allow(dead_code)]
