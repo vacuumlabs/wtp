@@ -13,7 +13,6 @@ use crate::{
 use oura::model::{
     BlockRecord, OutputAssetRecord, TransactionRecord, TxInputRecord, TxOutputRecord,
 };
-use sea_orm::entity::prelude::*;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbBackend, EntityTrait,
     FromQueryResult, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
@@ -250,30 +249,14 @@ pub async fn insert_price_update(
     asset2: &AssetAmount,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-    let token1_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset1.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
-    let token2_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset2.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+    let token1_id = get_token_id(&asset1.asset, db).await?;
+    let token2_id = get_token_id(&asset2.asset, db).await?;
 
     let price_update_model = price_update::ActiveModel {
         tx_id: Set(tx_id),
         script_hash: Set(script_hash.to_vec()),
-        token1_id: Set(token1_model.id),
-        token2_id: Set(token2_model.id),
+        token1_id: Set(token1_id),
+        token2_id: Set(token2_id),
         amount1: Set(asset1.amount as i64),
         amount2: Set(asset2.amount as i64),
         ..Default::default()
@@ -291,30 +274,14 @@ pub async fn insert_swap(
     direction: bool,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-    let token1_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset1.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset1.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?;
-    let token2_model = token::Entity::find()
-        .filter(
-            token::Column::PolicyId
-                .eq(hex::decode(&asset2.asset.policy_id)?)
-                .and(token::Column::Name.eq(hex::decode(&asset2.asset.name)?)),
-        )
-        .one(db)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Token2 not found"))?;
+    let token1_id = get_token_id(&asset1.asset, db).await?;
+    let token2_id = get_token_id(&asset2.asset, db).await?;
 
     let swap_model = swap::ActiveModel {
         tx_id: Set(tx_id),
         script_hash: Set(script_hash.to_vec()),
-        token1_id: Set(token1_model.id),
-        token2_id: Set(token2_model.id),
+        token1_id: Set(token1_id),
+        token2_id: Set(token2_id),
         amount1: Set(asset1.amount as i64),
         amount2: Set(asset2.amount as i64),
         direction: Set(direction),
@@ -322,6 +289,19 @@ pub async fn insert_swap(
     };
     swap_model.insert(db).await?;
     Ok(())
+}
+
+pub async fn get_token_id(asset: &Asset, db: &DatabaseConnection) -> anyhow::Result<i64> {
+    Ok(token::Entity::find()
+        .filter(
+            token::Column::PolicyId
+                .eq(hex::decode(&asset.policy_id)?)
+                .and(token::Column::Name.eq(hex::decode(&asset.name)?)),
+        )
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Token not found"))?
+        .id)
 }
 
 #[allow(dead_code)]
@@ -334,13 +314,11 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
     #[derive(Debug, FromQueryResult)]
     struct RawExchangeRate {
         script_hash: Vec<u8>,
-        policy_id1: Vec<u8>,
-        name1: Vec<u8>,
-        policy_id2: Vec<u8>,
-        name2: Vec<u8>,
+        t1_id: i64,
+        t2_id: i64,
         amount1: i64,
         amount2: i64,
-        timestamp: DateTime,
+        tx_id: i64,
     }
 
     let raw_exchange_rates: Vec<RawExchangeRate> =
@@ -349,19 +327,17 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
             r#"
             SELECT
                 script_hash,
-                t1.policy_id AS policy_id1,
-                t1.name AS name1,
-                t2.policy_id AS policy_id2,
-                t2.name AS name2,
+                t1.id AS t1_id,
+                t2.id AS t2_id,
                 amount1,
                 amount2,
-                timestamp
+                tx_id
 
             FROM price_update
             JOIN token AS t1 ON t1.id = price_update.token1_id
             JOIN token AS t2 ON t2.id = price_update.token2_id
-            WHERE (script_hash, token1_id, token2_id, timestamp) IN (
-                SELECT script_hash, token1_id, token2_id, MAX(timestamp)
+            WHERE (script_hash, token1_id, token2_id, tx_id) IN (
+                SELECT script_hash, token1_id, token2_id, MAX(tx_id)
                 FROM price_update
                 GROUP BY script_hash, token1_id, token2_id
             )
@@ -376,20 +352,8 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
         .iter()
         .map(|r| ExchangeRate {
             script_hash: hex::encode(r.script_hash.clone()),
-            asset1: AssetAmount {
-                asset: Asset {
-                    policy_id: hex::encode(r.policy_id1.clone()),
-                    name: hex::encode(r.name1.clone()),
-                },
-                amount: r.amount1 as u64,
-            },
-            asset2: AssetAmount {
-                asset: Asset {
-                    policy_id: hex::encode(r.policy_id2.clone()),
-                    name: hex::encode(r.name2.clone()),
-                },
-                amount: r.amount2 as u64,
-            },
+            asset1: r.t1_id,
+            asset2: r.t2_id,
             rate: r.amount1 as f64 / r.amount2 as f64,
         })
         .collect())
@@ -420,7 +384,7 @@ pub async fn get_token_price_history(
     let data = price_update::Entity::find()
         .filter(price_update::Column::Token1Id.eq(asset_id1))
         .filter(price_update::Column::Token2Id.eq(asset_id2))
-        .order_by(price_update::Column::Timestamp, Order::Desc)
+        .order_by(price_update::Column::TxId, Order::Desc)
         .limit(count)
         .all(db)
         .await?;
@@ -431,7 +395,7 @@ pub async fn get_token_price_history(
             amount1: p.amount1,
             amount2: p.amount2,
             rate: p.amount1 as f64 / p.amount2 as f64,
-            timestamp: p.timestamp,
+            tx_id: p.tx_id,
         })
         .collect())
 }
