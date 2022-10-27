@@ -300,7 +300,7 @@ pub async fn get_token_id(asset: &Asset, db: &DatabaseConnection) -> anyhow::Res
         )
         .one(db)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Token1 not found"))?
+        .ok_or_else(|| anyhow::anyhow!("Token not found"))?
         .id)
 }
 
