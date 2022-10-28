@@ -43,4 +43,19 @@ pub struct SwapHistory {
     pub direction: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct SwapInfo {
+    pub asset1: i64,
+    pub amount1: i64,
+    pub asset2: i64,
+    pub amount2: i64,
+    pub direction: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BroadcastMessage {
+    pub operation: String,
+    pub data: String,
+}
+
 pub type PlutusData = Swap;
