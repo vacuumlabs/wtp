@@ -1,6 +1,6 @@
 use crate::{
     config, queries, server,
-    types::{Asset, AssetAmount, ExchangeRate, PlutusData, Swap},
+    types::{Asset, AssetAmount, BroadcastMessage, ExchangeRate, PlutusData, Swap, SwapInfo},
     utils,
 };
 use oura::{
@@ -346,20 +346,25 @@ pub async fn start(
                         if let Some((asset1, asset2)) =
                             wr_get_transaction(transaction_record, &script_hash)
                         {
+                            let asset1_id = queries::get_token_id(&asset1.asset, &db).await?;
+                            let asset2_id = queries::get_token_id(&asset2.asset, &db).await?;
+
                             let exchange_rate = ExchangeRate {
-                                asset1: queries::get_token_id(&asset1.asset, &db).await?,
-                                asset2: queries::get_token_id(&asset2.asset, &db).await?,
+                                asset1: asset1_id,
+                                asset2: asset2_id,
                                 script_hash: pool.script_hash.clone(),
                                 rate: asset1.amount as f64 / asset2.amount as f64,
                             };
-                            server::ws_broadcast(serde_json::to_string(&exchange_rate).unwrap());
+                            server::ws_broadcast(&BroadcastMessage::MeanValue(exchange_rate));
 
                             if let Some(tx_id) = tx_id {
                                 queries::insert_price_update(
                                     tx_id,
                                     &script_hash,
-                                    &asset1,
-                                    &asset2,
+                                    asset1_id,
+                                    asset1.amount as i64,
+                                    asset2_id,
+                                    asset2.amount as i64,
                                     &db,
                                 )
                                 .await?;
@@ -375,15 +380,19 @@ pub async fn start(
                             let swaps = wr_get_swaps(transaction_record, &db).await;
                             if let Some(tx_id) = tx_id {
                                 for swap in swaps.iter().flatten() {
-                                    queries::insert_swap(
-                                        tx_id,
-                                        &script_hash,
-                                        &swap.first,
-                                        &swap.second,
-                                        swap.direction,
-                                        &db,
-                                    )
-                                    .await?;
+                                    let swap_info = SwapInfo {
+                                        asset1: asset1_id,
+                                        amount1: swap.first.amount as i64,
+                                        asset2: asset2_id,
+                                        amount2: swap.second.amount as i64,
+                                        direction: match swap.direction {
+                                            true => "Buy".to_string(),
+                                            false => "Sell".to_string(),
+                                        },
+                                    };
+                                    queries::insert_swap(tx_id, &script_hash, &swap_info, &db)
+                                        .await?;
+                                    server::ws_broadcast(&BroadcastMessage::Swap(swap_info));
                                 }
                             }
                             tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);

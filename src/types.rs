@@ -43,4 +43,20 @@ pub struct SwapHistory {
     pub direction: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct SwapInfo {
+    pub asset1: i64,
+    pub amount1: i64,
+    pub asset2: i64,
+    pub amount2: i64,
+    pub direction: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "operation", content = "data")]
+pub enum BroadcastMessage {
+    MeanValue(ExchangeRate),
+    Swap(SwapInfo),
+}
+
 pub type PlutusData = Swap;

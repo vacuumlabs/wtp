@@ -7,7 +7,7 @@ use crate::{
     entity::{
         address, block, price_update, swap, token, token_transfer, transaction, transaction_output,
     },
-    types::{Asset, AssetAmount, ExchangeHistory, ExchangeRate, SwapHistory},
+    types::{Asset, ExchangeHistory, ExchangeRate, SwapHistory, SwapInfo},
     utils::ADA_TOKEN,
 };
 use oura::model::{
@@ -245,20 +245,19 @@ async fn insert_output(
 pub async fn insert_price_update(
     tx_id: i64,
     script_hash: &[u8],
-    asset1: &AssetAmount,
-    asset2: &AssetAmount,
+    token1_id: i64,
+    asset1_amount: i64,
+    token2_id: i64,
+    asset2_amount: i64,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-    let token1_id = get_token_id(&asset1.asset, db).await?;
-    let token2_id = get_token_id(&asset2.asset, db).await?;
-
     let price_update_model = price_update::ActiveModel {
         tx_id: Set(tx_id),
         script_hash: Set(script_hash.to_vec()),
         token1_id: Set(token1_id),
         token2_id: Set(token2_id),
-        amount1: Set(asset1.amount as i64),
-        amount2: Set(asset2.amount as i64),
+        amount1: Set(asset1_amount),
+        amount2: Set(asset2_amount),
         ..Default::default()
     };
     price_update_model.insert(db).await?;
@@ -269,22 +268,17 @@ pub async fn insert_price_update(
 pub async fn insert_swap(
     tx_id: i64,
     script_hash: &[u8],
-    asset1: &AssetAmount,
-    asset2: &AssetAmount,
-    direction: bool,
+    swap: &SwapInfo,
     db: &DatabaseConnection,
 ) -> anyhow::Result<()> {
-    let token1_id = get_token_id(&asset1.asset, db).await?;
-    let token2_id = get_token_id(&asset2.asset, db).await?;
-
     let swap_model = swap::ActiveModel {
         tx_id: Set(tx_id),
         script_hash: Set(script_hash.to_vec()),
-        token1_id: Set(token1_id),
-        token2_id: Set(token2_id),
-        amount1: Set(asset1.amount as i64),
-        amount2: Set(asset2.amount as i64),
-        direction: Set(direction),
+        token1_id: Set(swap.asset1),
+        token2_id: Set(swap.asset2),
+        amount1: Set(swap.amount1),
+        amount2: Set(swap.amount2),
+        direction: Set(swap.direction == "Sell"),
         ..Default::default()
     };
     swap_model.insert(db).await?;

@@ -1,3 +1,4 @@
+use crate::types::BroadcastMessage;
 use futures::prelude::*;
 use headers::HeaderMapExt;
 use hyper::{
@@ -12,13 +13,13 @@ use tokio_tungstenite::{tungstenite::protocol, WebSocketStream};
 
 pub static WS_BROADCAST_CHANNEL: RwLock<Option<broadcast::Sender<String>>> = RwLock::new(None);
 
-pub fn ws_broadcast(msg: String) {
+pub fn ws_broadcast(msg: &BroadcastMessage) {
     WS_BROADCAST_CHANNEL
         .read()
         .unwrap()
         .as_ref()
         .unwrap()
-        .send(msg)
+        .send(serde_json::to_string(msg).unwrap())
         .ok();
 }
 
