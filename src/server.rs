@@ -1,4 +1,4 @@
-use crate::types::{BroadcastMessage, BroadcastType};
+use crate::types::BroadcastMessage;
 use futures::prelude::*;
 use headers::HeaderMapExt;
 use hyper::{
@@ -7,18 +7,13 @@ use hyper::{
     Body, HeaderMap, Method, Request, Response, StatusCode,
 };
 use sea_orm::Database;
-use serde::Serialize;
 use std::sync::RwLock;
 use tokio::sync::broadcast;
 use tokio_tungstenite::{tungstenite::protocol, WebSocketStream};
 
 pub static WS_BROADCAST_CHANNEL: RwLock<Option<broadcast::Sender<String>>> = RwLock::new(None);
 
-pub fn ws_broadcast<T: Serialize + std::fmt::Debug>(msg_type: BroadcastType, data: &T) {
-    let msg = &BroadcastMessage {
-        operation: msg_type,
-        data: serde_json::to_string(data).unwrap(),
-    };
+pub fn ws_broadcast(msg: &BroadcastMessage) {
     WS_BROADCAST_CHANNEL
         .read()
         .unwrap()
