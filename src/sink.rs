@@ -1,6 +1,6 @@
 use crate::{
     config, queries, server,
-    types::{Asset, AssetAmount, BroadcastMessage, ExchangeRate, PlutusData, Swap, SwapInfo},
+    types::{Asset, AssetAmount, BroadcastMessage, BroadcastType, ExchangeRate, PlutusData, Swap, SwapInfo},
     utils,
 };
 use oura::{
@@ -357,7 +357,7 @@ pub async fn start(
                             };
                             server::ws_broadcast(
                                 serde_json::to_string(&BroadcastMessage {
-                                    operation: "mean_value".to_string(),
+                                    operation: BroadcastType::MeanValue,
                                     data: serde_json::to_string(&exchange_rate).unwrap(),
                                 })
                                 .unwrap(),
@@ -400,7 +400,7 @@ pub async fn start(
                                         .await?;
                                     server::ws_broadcast(
                                         serde_json::to_string(&BroadcastMessage {
-                                            operation: "swap".to_string(),
+                                            operation: BroadcastType::Swap,
                                             data: serde_json::to_string(&swap_info).unwrap(),
                                         })
                                         .unwrap(),

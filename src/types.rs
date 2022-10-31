@@ -54,8 +54,14 @@ pub struct SwapInfo {
 
 #[derive(Debug, Serialize)]
 pub struct BroadcastMessage {
-    pub operation: String,
+    pub operation: BroadcastType,
     pub data: String,
+}
+
+#[derive(Debug, Serialize)]
+pub enum BroadcastType {
+  MeanValue,
+  Swap,
 }
 
 pub type PlutusData = Swap;
