@@ -53,14 +53,8 @@ pub struct SwapInfo {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BroadcastMessage {
-    #[serde(flatten)]
-    pub data: BroadcastType,
-}
-
-#[derive(Debug, Serialize)]
 #[serde(tag = "operation", content = "data")]
-pub enum BroadcastType {
+pub enum BroadcastMessage {
     MeanValue(ExchangeRate),
     Swap(SwapInfo),
 }
