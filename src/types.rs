@@ -60,8 +60,8 @@ pub struct BroadcastMessage {
 
 #[derive(Debug, Serialize)]
 pub enum BroadcastType {
-  MeanValue,
-  Swap,
+    MeanValue,
+    Swap,
 }
 
 pub type PlutusData = Swap;
