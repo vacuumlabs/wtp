@@ -54,6 +54,7 @@ pub struct SwapInfo {
 
 #[derive(Debug, Serialize)]
 pub struct BroadcastMessage {
+    #[serde(flatten)]
     pub data: BroadcastType,
 }
 
