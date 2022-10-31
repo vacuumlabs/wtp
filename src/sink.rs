@@ -1,9 +1,6 @@
 use crate::{
     config, queries, server,
-    types::{
-        Asset, AssetAmount, BroadcastMessage, BroadcastType, ExchangeRate, PlutusData, Swap,
-        SwapInfo,
-    },
+    types::{Asset, AssetAmount, BroadcastType, ExchangeRate, PlutusData, Swap, SwapInfo},
     utils,
 };
 use oura::{
@@ -358,9 +355,7 @@ pub async fn start(
                                 script_hash: pool.script_hash.clone(),
                                 rate: asset1.amount as f64 / asset2.amount as f64,
                             };
-                            server::ws_broadcast(&BroadcastMessage {
-                                data: BroadcastType::MeanValue(exchange_rate),
-                            });
+                            server::ws_broadcast(&BroadcastType::MeanValue(exchange_rate));
 
                             if let Some(tx_id) = tx_id {
                                 queries::insert_price_update(
@@ -397,9 +392,7 @@ pub async fn start(
                                     };
                                     queries::insert_swap(tx_id, &script_hash, &swap_info, &db)
                                         .await?;
-                                    server::ws_broadcast(&BroadcastMessage {
-                                        data: BroadcastType::Swap(swap_info),
-                                    });
+                                    server::ws_broadcast(&BroadcastType::Swap(swap_info));
                                 }
                             }
                             tracing::info!("SWAPS[{}] {:?}", transaction_record.hash, swaps);

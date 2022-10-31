@@ -1,4 +1,4 @@
-use crate::types::BroadcastMessage;
+use crate::types::BroadcastType;
 use futures::prelude::*;
 use headers::HeaderMapExt;
 use hyper::{
@@ -13,7 +13,7 @@ use tokio_tungstenite::{tungstenite::protocol, WebSocketStream};
 
 pub static WS_BROADCAST_CHANNEL: RwLock<Option<broadcast::Sender<String>>> = RwLock::new(None);
 
-pub fn ws_broadcast(msg: &BroadcastMessage) {
+pub fn ws_broadcast(msg: &BroadcastType) {
     WS_BROADCAST_CHANNEL
         .read()
         .unwrap()
