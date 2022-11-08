@@ -141,11 +141,11 @@ impl common::Dex for WingRidersV1 {
                 // Zip outputs with redemeer index
 
                 // get information about swap from pool plutus data
-                if let Some(datum) = transaction.plutus_data.iter().flatten().find(|p| {
+                if let Some(pool_datum) = transaction.plutus_data.iter().flatten().find(|p| {
                     p.datum_hash == inputs[pool_input].clone().unwrap().datum_hash.unwrap()
                 }) {
                     let (asset1, asset2) =
-                        wr_extract_plutus_assets(&datum.plutus_data["fields"][1]);
+                        wr_extract_plutus_assets(&pool_datum.plutus_data["fields"][1]);
 
                     for (out, redeemer) in transaction
                         .outputs
@@ -163,79 +163,80 @@ impl common::Dex for WingRidersV1 {
                         let amount1;
                         let amount2;
                         // get actual plutus data
-                        let datum = transaction
+                        if let Some(datum) = transaction
                             .plutus_data
                             .iter()
                             .flatten()
                             .find(|p| p.datum_hash == inp.datum_hash.as_ref().unwrap().clone())
-                            .unwrap();
-                        // identify operation 0 - swap
-                        let operation = datum.plutus_data["fields"][1]["constructor"]
-                            .as_i64()
-                            .unwrap();
-                        if operation == 0 {
-                            let direction = datum.plutus_data["fields"][1]["fields"][0]
-                                ["constructor"]
+                        {
+                            // identify operation 0 - swap
+                            let operation = datum.plutus_data["fields"][1]["constructor"]
                                 .as_i64()
                                 .unwrap();
-                            if direction == 0 {
-                                amount1 = common::get_amount(
-                                    &inp,
-                                    &asset1.asset.policy_id,
-                                    &asset1.asset.name,
-                                ) - common::reduce_ada_amount(
-                                    &asset1.asset.policy_id,
-                                    &asset1.asset.name,
-                                    WR_ADA_SWAP_IN,
-                                );
-                                amount2 = common::get_amount(
-                                    out,
-                                    &asset2.asset.policy_id,
-                                    &asset2.asset.name,
-                                ) - common::reduce_ada_amount(
-                                    &asset2.asset.policy_id,
-                                    &asset2.asset.name,
-                                    WR_ADA_SWAP_OUT,
-                                );
+                            if operation == 0 {
+                                let direction = datum.plutus_data["fields"][1]["fields"][0]
+                                    ["constructor"]
+                                    .as_i64()
+                                    .unwrap();
+                                if direction == 0 {
+                                    amount1 = common::get_amount(
+                                        &inp,
+                                        &asset1.asset.policy_id,
+                                        &asset1.asset.name,
+                                    ) - common::reduce_ada_amount(
+                                        &asset1.asset.policy_id,
+                                        &asset1.asset.name,
+                                        WR_ADA_SWAP_IN,
+                                    );
+                                    amount2 = common::get_amount(
+                                        out,
+                                        &asset2.asset.policy_id,
+                                        &asset2.asset.name,
+                                    ) - common::reduce_ada_amount(
+                                        &asset2.asset.policy_id,
+                                        &asset2.asset.name,
+                                        WR_ADA_SWAP_OUT,
+                                    );
+                                } else {
+                                    amount1 = common::get_amount(
+                                        out,
+                                        &asset1.asset.policy_id,
+                                        &asset1.asset.name,
+                                    ) - common::reduce_ada_amount(
+                                        &asset1.asset.policy_id,
+                                        &asset1.asset.name,
+                                        WR_ADA_SWAP_OUT,
+                                    );
+                                    amount2 = common::get_amount(
+                                        &inp,
+                                        &asset2.asset.policy_id,
+                                        &asset2.asset.name,
+                                    ) - common::reduce_ada_amount(
+                                        &asset2.asset.policy_id,
+                                        &asset2.asset.name,
+                                        WR_ADA_SWAP_IN,
+                                    );
+                                }
+                                swaps.push(Swap {
+                                    first: AssetAmount {
+                                        asset: Asset {
+                                            policy_id: asset1.asset.policy_id.clone(),
+                                            name: asset1.asset.name.clone(),
+                                        },
+                                        amount: amount1,
+                                    },
+                                    second: AssetAmount {
+                                        asset: Asset {
+                                            policy_id: asset2.asset.policy_id.clone(),
+                                            name: asset2.asset.name.clone(),
+                                        },
+                                        amount: amount2,
+                                    },
+                                    direction: direction == 0,
+                                })
                             } else {
-                                amount1 = common::get_amount(
-                                    out,
-                                    &asset1.asset.policy_id,
-                                    &asset1.asset.name,
-                                ) - common::reduce_ada_amount(
-                                    &asset1.asset.policy_id,
-                                    &asset1.asset.name,
-                                    WR_ADA_SWAP_OUT,
-                                );
-                                amount2 = common::get_amount(
-                                    &inp,
-                                    &asset2.asset.policy_id,
-                                    &asset2.asset.name,
-                                ) - common::reduce_ada_amount(
-                                    &asset2.asset.policy_id,
-                                    &asset2.asset.name,
-                                    WR_ADA_SWAP_IN,
-                                );
+                                tracing::info!("Operation is not swap");
                             }
-                            swaps.push(Swap {
-                                first: AssetAmount {
-                                    asset: Asset {
-                                        policy_id: asset1.asset.policy_id.clone(),
-                                        name: asset1.asset.name.clone(),
-                                    },
-                                    amount: amount1,
-                                },
-                                second: AssetAmount {
-                                    asset: Asset {
-                                        policy_id: asset2.asset.policy_id.clone(),
-                                        name: asset2.asset.name.clone(),
-                                    },
-                                    amount: amount2,
-                                },
-                                direction: direction == 0,
-                            })
-                        } else {
-                            tracing::info!("Operation is not swap");
                         }
                     }
                 }
