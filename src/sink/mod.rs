@@ -9,8 +9,8 @@ use sea_orm::DatabaseConnection;
 
 pub mod common;
 pub mod minswap_v1;
-pub mod sundaeswap;
-pub mod wingriders;
+pub mod sundaeswap_v1;
+pub mod wingriders_v1;
 
 pub async fn start(
     input: StageReceiver,

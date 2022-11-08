@@ -1,5 +1,5 @@
 use crate::{
-    config::{PoolConfig, SundaeSwap},
+    config::{PoolConfig, SundaeSwapV1},
     queries,
     sink::common,
     types::{Asset, AssetAmount, Swap},
@@ -59,7 +59,7 @@ pub fn get_address_from_plutus(datum: &serde_json::Value) -> String {
 }
 
 #[async_trait]
-impl common::Dex for SundaeSwap {
+impl common::Dex for SundaeSwapV1 {
     async fn mean_value(
         &self,
         pool: &PoolConfig,
@@ -153,13 +153,13 @@ impl common::Dex for SundaeSwap {
                         {
                             true => (
                                 common::get_amount(input, &asset1.policy_id, &asset1.name)
-                                    - common::reduce_amount(
+                                    - common::reduce_ada_amount(
                                         &asset1.policy_id,
                                         &asset1.name,
                                         SS1_ADA_SWAP_IN,
                                     ),
                                 common::get_amount(utxo, &asset2.policy_id, &asset2.name)
-                                    - common::reduce_amount(
+                                    - common::reduce_ada_amount(
                                         &asset2.policy_id,
                                         &asset2.name,
                                         SS1_ADA_SWAP_OUT,
@@ -168,13 +168,13 @@ impl common::Dex for SundaeSwap {
                             ),
                             false => (
                                 common::get_amount(utxo, &asset1.policy_id, &asset1.name)
-                                    - common::reduce_amount(
+                                    - common::reduce_ada_amount(
                                         &asset1.policy_id,
                                         &asset1.name,
                                         SS1_ADA_SWAP_OUT,
                                     ),
                                 common::get_amount(input, &asset2.policy_id, &asset2.name)
-                                    - common::reduce_amount(
+                                    - common::reduce_ada_amount(
                                         &asset2.policy_id,
                                         &asset2.name,
                                         SS1_ADA_SWAP_IN,

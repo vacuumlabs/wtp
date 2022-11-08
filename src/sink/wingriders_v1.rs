@@ -1,5 +1,5 @@
 use crate::{
-    config::{PoolConfig, WingRiders},
+    config::{PoolConfig, WingRidersV1},
     queries,
     sink::common,
     types::{Asset, AssetAmount, Swap},
@@ -13,9 +13,9 @@ static WR_ADA_POOL: u64 = 3_000_000;
 static WR_ADA_SWAP_IN: u64 = 4_000_000;
 static WR_ADA_SWAP_OUT: u64 = 2_000_000;
 
-fn wr_extract_plutus_datum(datum: &serde_json::Value) -> Swap {
-    Swap {
-        first: AssetAmount {
+fn wr_extract_plutus_assets(datum: &serde_json::Value) -> (AssetAmount, AssetAmount) {
+    (
+        AssetAmount {
             asset: Asset {
                 policy_id: datum["fields"][0]["fields"][0]["fields"][0]["bytes"]
                     .as_str()
@@ -28,7 +28,7 @@ fn wr_extract_plutus_datum(datum: &serde_json::Value) -> Swap {
             },
             amount: datum["fields"][2]["int"].as_i64().unwrap() as u64,
         },
-        second: AssetAmount {
+        AssetAmount {
             asset: Asset {
                 policy_id: datum["fields"][0]["fields"][1]["fields"][0]["bytes"]
                     .as_str()
@@ -41,12 +41,11 @@ fn wr_extract_plutus_datum(datum: &serde_json::Value) -> Swap {
             },
             amount: datum["fields"][3]["int"].as_i64().unwrap() as u64,
         },
-        direction: false,
-    }
+    )
 }
 
 #[async_trait]
-impl common::Dex for WingRiders {
+impl common::Dex for WingRidersV1 {
     async fn mean_value(
         &self,
         pool: &PoolConfig,
@@ -66,41 +65,37 @@ impl common::Dex for WingRiders {
                 |&p| matches!(&output.datum_hash, Some(datum_hash) if *datum_hash == p.datum_hash),
             ) {
                 // Get treasury from plutus
-                let plutus_datum = wr_extract_plutus_datum(&datum.plutus_data["fields"][1]);
+                let (asset1, asset2) = wr_extract_plutus_assets(&datum.plutus_data["fields"][1]);
                 // Get amount of tokens
-                let amount1 = common::get_amount(
-                    output,
-                    &plutus_datum.first.asset.policy_id,
-                    &plutus_datum.first.asset.name,
-                ) - plutus_datum.first.amount
-                    - common::reduce_amount(
-                        &plutus_datum.first.asset.policy_id,
-                        &plutus_datum.first.asset.name,
-                        WR_ADA_POOL,
-                    );
-                let amount2 = common::get_amount(
-                    output,
-                    &plutus_datum.second.asset.policy_id,
-                    &plutus_datum.second.asset.name,
-                ) - plutus_datum.second.amount
-                    - common::reduce_amount(
-                        &plutus_datum.second.asset.policy_id,
-                        &plutus_datum.second.asset.name,
-                        WR_ADA_POOL,
-                    );
+                let amount1 =
+                    common::get_amount(output, &asset1.asset.policy_id, &asset1.asset.name)
+                        - asset1.amount
+                        - common::reduce_ada_amount(
+                            &asset1.asset.policy_id,
+                            &asset1.asset.name,
+                            WR_ADA_POOL,
+                        );
+                let amount2 =
+                    common::get_amount(output, &asset2.asset.policy_id, &asset2.asset.name)
+                        - asset2.amount
+                        - common::reduce_ada_amount(
+                            &asset2.asset.policy_id,
+                            &asset2.asset.name,
+                            WR_ADA_POOL,
+                        );
 
                 return Some((
                     AssetAmount {
                         asset: Asset {
-                            policy_id: plutus_datum.first.asset.policy_id,
-                            name: plutus_datum.first.asset.name,
+                            policy_id: asset1.asset.policy_id,
+                            name: asset1.asset.name,
                         },
                         amount: amount1,
                     },
                     AssetAmount {
                         asset: Asset {
-                            policy_id: plutus_datum.second.asset.policy_id,
-                            name: plutus_datum.second.asset.name,
+                            policy_id: asset2.asset.policy_id,
+                            name: asset2.asset.name,
                         },
                         amount: amount2,
                     },
@@ -119,21 +114,18 @@ impl common::Dex for WingRiders {
         let mut swaps: Vec<Swap> = Vec::new();
 
         // Get pool input from redemeers
-        let pool_input = transaction
-            .plutus_redeemers
-            .iter()
-            .flatten()
-            .find(|_| true)
-            .unwrap()
-            .plutus_data["fields"][0]["int"]
+        let pool_input = transaction.plutus_redeemers.as_ref().unwrap()[0].plutus_data["fields"][0]
+            ["int"]
             .as_i64();
+
         if let Some(pool_input) = pool_input {
+            let pool_input = pool_input as usize;
             // Find main redemeer
             if let Some(redeemer) = transaction
                 .plutus_redeemers
                 .iter()
                 .flatten()
-                .find(|r| (r.input_idx as usize) == pool_input as usize)
+                .find(|r| (r.input_idx as usize) == pool_input)
             {
                 // Extract input list from redemeer
                 let redeemer_map: Vec<usize> = redeemer.plutus_data["fields"][2]["list"]
@@ -142,31 +134,32 @@ impl common::Dex for WingRiders {
                     .iter()
                     .map(|r| r["int"].as_i64().unwrap() as usize)
                     .collect();
-                // Find main transaction
-                let mother = redeemer.plutus_data["fields"][0]["int"].as_i64().unwrap() as usize;
+
                 // Restore inputs
                 let inputs =
                     queries::get_utxo_input(&transaction.inputs.clone().unwrap(), db).await?;
                 // Zip outputs with redemeer index
-                for (out, redeemer) in transaction
-                    .outputs
-                    .iter()
-                    .flatten()
-                    .skip(1)
-                    .zip(redeemer_map)
-                {
-                    if inputs[redeemer].is_none() {
-                        tracing::info!("Missing UTxO on {}", transaction.hash);
-                        continue;
-                    }
-                    // pair input with output
-                    let inp = inputs[redeemer].clone().unwrap();
 
-                    // get information about swap from pool plutus data
-                    if let Some(datum) = transaction.plutus_data.iter().flatten().find(|p| {
-                        p.datum_hash == inputs[mother].clone().unwrap().datum_hash.unwrap()
-                    }) {
-                        let plutus_datum = wr_extract_plutus_datum(&datum.plutus_data["fields"][1]);
+                // get information about swap from pool plutus data
+                if let Some(datum) = transaction.plutus_data.iter().flatten().find(|p| {
+                    p.datum_hash == inputs[pool_input].clone().unwrap().datum_hash.unwrap()
+                }) {
+                    let (asset1, asset2) =
+                        wr_extract_plutus_assets(&datum.plutus_data["fields"][1]);
+
+                    for (out, redeemer) in transaction
+                        .outputs
+                        .iter()
+                        .flatten()
+                        .skip(1)
+                        .zip(redeemer_map)
+                    {
+                        if inputs[redeemer].is_none() {
+                            tracing::info!("Missing UTxO on {}", transaction.hash);
+                            continue;
+                        }
+                        // pair input with output
+                        let inp = inputs[redeemer].clone().unwrap();
                         let amount1;
                         let amount2;
                         // get actual plutus data
@@ -188,54 +181,54 @@ impl common::Dex for WingRiders {
                             if direction == 0 {
                                 amount1 = common::get_amount(
                                     &inp,
-                                    &plutus_datum.first.asset.policy_id,
-                                    &plutus_datum.first.asset.name,
-                                ) - common::reduce_amount(
-                                    &plutus_datum.first.asset.policy_id,
-                                    &plutus_datum.first.asset.name,
+                                    &asset1.asset.policy_id,
+                                    &asset1.asset.name,
+                                ) - common::reduce_ada_amount(
+                                    &asset1.asset.policy_id,
+                                    &asset1.asset.name,
                                     WR_ADA_SWAP_IN,
                                 );
                                 amount2 = common::get_amount(
                                     out,
-                                    &plutus_datum.second.asset.policy_id,
-                                    &plutus_datum.second.asset.name,
-                                ) - common::reduce_amount(
-                                    &plutus_datum.second.asset.policy_id,
-                                    &plutus_datum.second.asset.name,
+                                    &asset2.asset.policy_id,
+                                    &asset2.asset.name,
+                                ) - common::reduce_ada_amount(
+                                    &asset2.asset.policy_id,
+                                    &asset2.asset.name,
                                     WR_ADA_SWAP_OUT,
                                 );
                             } else {
                                 amount1 = common::get_amount(
                                     out,
-                                    &plutus_datum.first.asset.policy_id,
-                                    &plutus_datum.first.asset.name,
-                                ) - common::reduce_amount(
-                                    &plutus_datum.first.asset.policy_id,
-                                    &plutus_datum.first.asset.name,
+                                    &asset1.asset.policy_id,
+                                    &asset1.asset.name,
+                                ) - common::reduce_ada_amount(
+                                    &asset1.asset.policy_id,
+                                    &asset1.asset.name,
                                     WR_ADA_SWAP_OUT,
                                 );
                                 amount2 = common::get_amount(
                                     &inp,
-                                    &plutus_datum.second.asset.policy_id,
-                                    &plutus_datum.second.asset.name,
-                                ) - common::reduce_amount(
-                                    &plutus_datum.second.asset.policy_id,
-                                    &plutus_datum.second.asset.name,
+                                    &asset2.asset.policy_id,
+                                    &asset2.asset.name,
+                                ) - common::reduce_ada_amount(
+                                    &asset2.asset.policy_id,
+                                    &asset2.asset.name,
                                     WR_ADA_SWAP_IN,
                                 );
                             }
                             swaps.push(Swap {
                                 first: AssetAmount {
                                     asset: Asset {
-                                        policy_id: plutus_datum.first.asset.policy_id,
-                                        name: plutus_datum.first.asset.name,
+                                        policy_id: asset1.asset.policy_id.clone(),
+                                        name: asset1.asset.name.clone(),
                                     },
                                     amount: amount1,
                                 },
                                 second: AssetAmount {
                                     asset: Asset {
-                                        policy_id: plutus_datum.second.asset.policy_id,
-                                        name: plutus_datum.second.asset.name,
+                                        policy_id: asset2.asset.policy_id.clone(),
+                                        name: asset2.asset.name.clone(),
                                     },
                                     amount: amount2,
                                 },
@@ -244,8 +237,6 @@ impl common::Dex for WingRiders {
                         } else {
                             tracing::info!("Operation is not swap");
                         }
-                    } else {
-                        tracing::info!("Datum not found");
                     }
                 }
             } else {

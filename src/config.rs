@@ -16,20 +16,20 @@ pub struct Config {
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
-pub struct WingRiders;
+pub struct WingRidersV1;
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct MinSwapV1;
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct MinSwapV2;
 #[derive(Deserialize, Debug, PartialEq, Eq)]
-pub struct SundaeSwap;
+pub struct SundaeSwapV1;
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct Empty;
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub enum PoolType {
-    WingRiders,
-    SundaeSwap,
+    WingRidersV1,
+    SundaeSwapV1,
     MinSwapV1,
     MinSwapV2,
 }
@@ -69,9 +69,9 @@ pub struct PoolConfig {
 impl PoolConfig {
     pub fn as_trait(&self) -> &dyn Dex {
         match &self.pool_type {
-            PoolType::WingRiders => &WingRiders {},
+            PoolType::WingRidersV1 => &WingRidersV1 {},
             PoolType::MinSwapV1 => &MinSwapV1 {},
-            PoolType::SundaeSwap => &SundaeSwap {},
+            PoolType::SundaeSwapV1 => &SundaeSwapV1 {},
             _ => &Empty {},
         }
     }

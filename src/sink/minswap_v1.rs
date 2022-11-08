@@ -188,13 +188,13 @@ impl common::Dex for MinSwapV1 {
                                     input,
                                     &main_asset1.policy_id,
                                     &main_asset1.name,
-                                ) - common::reduce_amount(
+                                ) - common::reduce_ada_amount(
                                     &main_asset1.policy_id,
                                     &main_asset1.name,
                                     MS1_ADA_SWAP_IN,
                                 ),
                                 common::get_amount(utxo, &main_asset2.policy_id, &main_asset2.name)
-                                    - common::reduce_amount(
+                                    - common::reduce_ada_amount(
                                         &main_asset2.policy_id,
                                         &main_asset2.name,
                                         MS1_ADA_SWAP_OUT,
@@ -203,7 +203,7 @@ impl common::Dex for MinSwapV1 {
                             ),
                             false => (
                                 common::get_amount(utxo, &main_asset1.policy_id, &main_asset1.name)
-                                    - common::reduce_amount(
+                                    - common::reduce_ada_amount(
                                         &main_asset1.policy_id,
                                         &main_asset1.name,
                                         MS1_ADA_SWAP_OUT,
@@ -212,7 +212,7 @@ impl common::Dex for MinSwapV1 {
                                     input,
                                     &main_asset2.policy_id,
                                     &main_asset2.name,
-                                ) - common::reduce_amount(
+                                ) - common::reduce_ada_amount(
                                     &main_asset2.policy_id,
                                     &main_asset2.name,
                                     MS1_ADA_SWAP_IN,

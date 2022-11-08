@@ -34,7 +34,7 @@ pub fn get_amount(output: &TxOutputRecord, policy_id: &str, asset: &str) -> u64 
         .fold(0, |sum, a| sum + a.amount) as u64
 }
 
-pub fn reduce_amount(policy_id: &str, asset: &str, amount: u64) -> u64 {
+pub fn reduce_ada_amount(policy_id: &str, asset: &str, amount: u64) -> u64 {
     if policy_id.is_empty() && asset.is_empty() {
         return amount;
     }
