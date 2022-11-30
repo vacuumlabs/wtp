@@ -58,5 +58,3 @@ pub enum BroadcastMessage {
     MeanValue(ExchangeRate),
     Swap(SwapInfo),
 }
-
-pub type PlutusData = Swap;

@@ -483,7 +483,7 @@ pub async fn get_utxo_input(
                 }
                 let mut assets = Vec::new();
                 let mut out = TxOutputRecord {
-                    address: String::from("address"),
+                    address: o.payload.clone(),
                     amount: 0,
                     assets: None,
                     datum_hash: o.datum_hash.clone(),
