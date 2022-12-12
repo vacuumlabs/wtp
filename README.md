@@ -1,8 +1,8 @@
 # What the price
-Tool for cardano to get Dex SWAP operation, store it to the Database and broadcast it throught the websocket.
+Tool for Cardano to get Dex SWAP operation, store it to the Database and broadcast it through the WebSocket.
 
 ## DEXes
-Current state is, that we have implemeneted 3 Dexes
+We have implemented 3 Dexes
 * WingRiders
 * MinSwap
 * SundaeSwap
@@ -11,16 +11,16 @@ Dex can have more versions and more addresses per version.
 
 ## Interface
 * `/health` - Health check endpoint
-* `/assets` - List of assets presents in the database. This is place, where pair asset_id with name and policy
+* `/assets` - List of assets present in the database. This is a place, where pair asset_id with name and policy
 * `/exchange_rates` - Calculate exchange rate. There is no information about decimal numbers
 * `/mean_history/TOKEN1_ID/TOKEN2_ID?count=<number>` - Return mean swap price for tokens. Mean is not AVG, but ration on the pool address
 * `/asset_swap/TOKEN1_ID/TOKEN2_ID?count=<number>` - Return last swap price for tokens.
-* `/socket/` - WebSocket enpoint for Live informatino about swap.
+* `/socket/` - WebSocket endpoint for Live information about the swap.
 
 
 ## Setting up
 
-Run a Postgres instance and create an empty databas for this project:
+Run a Postgres instance and create an empty database for this project:
 
 ```bash
 export DATABASE_URL='postgres://postgres:postgres@localhost:5432/wtp'
@@ -31,7 +31,7 @@ cargo run -- -s 'relays-new.cardano-mainnet.iohk.io:3001' -d $DATABASE_URL
 
 ## Development
 
-Add precommit hook:
+Add pre-commit hook:
 
 ```bash
 ln -s ../../pre-commit.sh .git/hooks/pre-commit
