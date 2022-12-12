@@ -19,7 +19,6 @@ use sea_orm::{
     Statement,
 };
 
-
 pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyhow::Result<i64> {
     let previous_hash = hex::decode(block.previous_hash.clone())?;
     let previous_block_model = block::Entity::find()
@@ -40,7 +39,6 @@ pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyho
     Ok(block_model.id)
 }
 
-
 pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Result<()> {
     // We remove all blocks that are after the given slot. Removing based on the rollback event's
     // block_hash might not work because it's affected by the --start option and thus the
@@ -51,7 +49,6 @@ pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Re
         .await?;
     Ok(())
 }
-
 
 pub async fn insert_transaction(
     transaction: &TransactionRecord,
