@@ -353,31 +353,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
 
 [[package]]
-name = "cardano_price_feed"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bech32 0.9.1",
- "clap 4.0.9",
- "futures",
- "headers",
- "hex",
- "hyper",
- "oura",
- "pallas",
- "rust_decimal 0.7.2",
- "sea-orm 0.7.1",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "toml",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3349,6 +3324,31 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "wtp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bech32 0.9.1",
+ "clap 4.0.9",
+ "futures",
+ "headers",
+ "hex",
+ "hyper",
+ "oura",
+ "pallas",
+ "rust_decimal 0.7.2",
+ "sea-orm 0.7.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "yaml-rust"

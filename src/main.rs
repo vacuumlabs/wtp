@@ -33,9 +33,13 @@ struct Args {
     #[arg(short, long)]
     database: String,
 
-    /// Persistency option
+    // Persistency option
     #[arg(short, long)]
     persistent: bool,
+
+    // Bind address
+    #[arg(short, long, default_value_t = String::from("0.0.0.0:3000"))]
+    bind: String,
 
     /// Config file
     #[arg(short, long, default_value_t = String::from("example.toml"))]
@@ -49,8 +53,8 @@ async fn main() -> anyhow::Result<()> {
     let fmt_layer = tracing_subscriber::fmt::layer();
     let filter = tracing_subscriber::filter::Targets::new()
         .with_target("oura", tracing::Level::WARN)
-        //.with_target("sqlx", tracing::Level::DEBUG)
-        .with_target("cardano_price_feed", tracing::Level::TRACE);
+        .with_target("sqlx", tracing::Level::DEBUG)
+        .with_target("wtp", tracing::Level::TRACE);
 
     tracing_subscriber::registry()
         .with(fmt_layer)
@@ -63,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let db_path = args.database.clone();
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr: SocketAddr = args.bind.parse().unwrap();
     let make_service = make_service_fn(move |_conn| {
         let db_path = db_path.clone();
         let service = service_fn(move |req| server::route(req, db_path.clone()));

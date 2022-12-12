@@ -140,67 +140,69 @@ impl common::Dex for SundaeSwapV1 {
                         == 0
                     {
                         let address = get_address_from_plutus(&plutus.plutus_data);
-                        let utxo_pos = free_utxo.iter().position(|o| o.address == address).unwrap();
-                        let utxo = free_utxo[utxo_pos];
-                        // Remove this UTxO as used
-                        free_utxo.remove(utxo_pos);
-
-                        let (amount1, amount2, direction) = match plutus.plutus_data["fields"][3]
-                            ["fields"][0]["constructor"]
-                            .as_i64()
-                            .unwrap()
-                            == 0
+                        if let Some(utxo_pos) = free_utxo.iter().position(|o| o.address == address)
                         {
-                            true => (
-                                common::get_amount(input, &asset1.policy_id, &asset1.name)
-                                    - common::reduce_ada_amount(
-                                        &asset1.policy_id,
-                                        &asset1.name,
-                                        SS1_ADA_SWAP_IN,
-                                    ),
-                                common::get_amount(utxo, &asset2.policy_id, &asset2.name)
-                                    - common::reduce_ada_amount(
-                                        &asset2.policy_id,
-                                        &asset2.name,
-                                        SS1_ADA_SWAP_OUT,
-                                    ),
-                                false,
-                            ),
-                            false => (
-                                common::get_amount(utxo, &asset1.policy_id, &asset1.name)
-                                    - common::reduce_ada_amount(
-                                        &asset1.policy_id,
-                                        &asset1.name,
-                                        SS1_ADA_SWAP_OUT,
-                                    ),
-                                common::get_amount(input, &asset2.policy_id, &asset2.name)
-                                    - common::reduce_ada_amount(
-                                        &asset2.policy_id,
-                                        &asset2.name,
-                                        SS1_ADA_SWAP_IN,
-                                    ),
-                                true,
-                            ),
-                        };
+                            let utxo = free_utxo[utxo_pos];
+                            // Remove this UTxO as used
+                            free_utxo.remove(utxo_pos);
 
-                        // Add swap to the result
-                        swaps.push(Swap {
-                            first: AssetAmount {
-                                asset: Asset {
-                                    policy_id: asset1.policy_id.clone(),
-                                    name: asset1.name.clone(),
+                            let (amount1, amount2, direction) = match plutus.plutus_data["fields"]
+                                [3]["fields"][0]["constructor"]
+                                .as_i64()
+                                .unwrap()
+                                == 0
+                            {
+                                true => (
+                                    common::get_amount(input, &asset1.policy_id, &asset1.name)
+                                        - common::reduce_ada_amount(
+                                            &asset1.policy_id,
+                                            &asset1.name,
+                                            SS1_ADA_SWAP_IN,
+                                        ),
+                                    common::get_amount(utxo, &asset2.policy_id, &asset2.name)
+                                        - common::reduce_ada_amount(
+                                            &asset2.policy_id,
+                                            &asset2.name,
+                                            SS1_ADA_SWAP_OUT,
+                                        ),
+                                    false,
+                                ),
+                                false => (
+                                    common::get_amount(utxo, &asset1.policy_id, &asset1.name)
+                                        - common::reduce_ada_amount(
+                                            &asset1.policy_id,
+                                            &asset1.name,
+                                            SS1_ADA_SWAP_OUT,
+                                        ),
+                                    common::get_amount(input, &asset2.policy_id, &asset2.name)
+                                        - common::reduce_ada_amount(
+                                            &asset2.policy_id,
+                                            &asset2.name,
+                                            SS1_ADA_SWAP_IN,
+                                        ),
+                                    true,
+                                ),
+                            };
+
+                            // Add swap to the result
+                            swaps.push(Swap {
+                                first: AssetAmount {
+                                    asset: Asset {
+                                        policy_id: asset1.policy_id.clone(),
+                                        name: asset1.name.clone(),
+                                    },
+                                    amount: amount1 as u64,
                                 },
-                                amount: amount1 as u64,
-                            },
-                            second: AssetAmount {
-                                asset: Asset {
-                                    policy_id: asset2.policy_id.clone(),
-                                    name: asset2.name.clone(),
+                                second: AssetAmount {
+                                    asset: Asset {
+                                        policy_id: asset2.policy_id.clone(),
+                                        name: asset2.name.clone(),
+                                    },
+                                    amount: amount2 as u64,
                                 },
-                                amount: amount2 as u64,
-                            },
-                            direction,
-                        });
+                                direction,
+                            });
+                        }
                     }
                 }
             }

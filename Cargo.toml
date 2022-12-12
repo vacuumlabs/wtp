@@ -2,7 +2,7 @@
 members = [".", "migration"]
 
 [package]
-name = "cardano_price_feed"
+name = "wtp"
 version = "0.1.0"
 edition = "2021"
 

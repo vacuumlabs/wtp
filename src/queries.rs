@@ -19,7 +19,7 @@ use sea_orm::{
     Statement,
 };
 
-#[allow(dead_code)]
+
 pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyhow::Result<i64> {
     let previous_hash = hex::decode(block.previous_hash.clone())?;
     let previous_block_model = block::Entity::find()
@@ -40,7 +40,7 @@ pub async fn insert_block(block: &BlockRecord, db: &DatabaseConnection) -> anyho
     Ok(block_model.id)
 }
 
-#[allow(dead_code)]
+
 pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Result<()> {
     // We remove all blocks that are after the given slot. Removing based on the rollback event's
     // block_hash might not work because it's affected by the --start option and thus the
@@ -52,7 +52,7 @@ pub async fn rollback_to_slot(slot: &u64, db: &DatabaseConnection) -> anyhow::Re
     Ok(())
 }
 
-#[allow(dead_code)]
+
 pub async fn insert_transaction(
     transaction: &TransactionRecord,
     block_id: i64,
@@ -102,7 +102,6 @@ pub async fn insert_transaction(
     Ok(transaction_model.id)
 }
 
-#[allow(dead_code)]
 async fn insert_missing_addresses(
     addresses: HashSet<String>,
     db: &DatabaseConnection,
@@ -139,7 +138,6 @@ async fn insert_missing_addresses(
         .collect())
 }
 
-#[allow(dead_code)]
 async fn insert_missing_tokens(
     tokens: HashSet<(Vec<u8>, Vec<u8>)>,
     db: &DatabaseConnection,
@@ -189,7 +187,6 @@ async fn insert_missing_tokens(
         .collect())
 }
 
-#[allow(dead_code)]
 async fn insert_output(
     output: &TxOutputRecord,
     transaction_model: &transaction::Model,
@@ -241,7 +238,6 @@ async fn insert_output(
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn insert_price_update(
     tx_id: i64,
     script_hash: &[u8],
@@ -264,7 +260,6 @@ pub async fn insert_price_update(
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn insert_swap(
     tx_id: i64,
     script_hash: &[u8],
@@ -298,7 +293,6 @@ pub async fn get_token_id(asset: &Asset, db: &DatabaseConnection) -> anyhow::Res
         .id)
 }
 
-#[allow(dead_code)]
 pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<ExchangeRate>> {
     // The raw SQL query here is rather unlucky, but we need to join the token table twice,
     // and the sea-orm version usde by us (dcSpark's fork which implements
@@ -312,7 +306,6 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
         t2_id: i64,
         amount1: i64,
         amount2: i64,
-        tx_id: i64,
     }
 
     let raw_exchange_rates: Vec<RawExchangeRate> =
@@ -324,8 +317,7 @@ pub async fn get_latest_prices(db: &DatabaseConnection) -> anyhow::Result<Vec<Ex
                 t1.id AS t1_id,
                 t2.id AS t2_id,
                 amount1,
-                amount2,
-                tx_id
+                amount2
 
             FROM price_update
             JOIN token AS t1 ON t1.id = price_update.token1_id
@@ -423,7 +415,6 @@ pub async fn get_swap_history(
         .collect())
 }
 
-#[allow(dead_code)]
 pub async fn get_utxo_input(
     inputs: &[TxInputRecord],
     db: &DatabaseConnection,

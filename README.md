@@ -1,17 +1,30 @@
-# Fast Cardano swap price feed
+# What the price
+Tool for cardano to get Dex SWAP operation, store it to the Database and broadcast it throught the websocket.
+
+## DEXes
+Current state is, that we have implemeneted 3 Dexes
+* WingRiders
+* MinSwap
+* SundaeSwap
+
+Dex can have more versions and more addresses per version.
+
+## Interface
+* `/health` - Health check endpoint
+* `/assets` - List of assets presents in the database. This is place, where pair asset_id with name and policy
+* `/exchange_rates` - Calculate exchange rate. There is no information about decimal numbers
+* `/mean_history/TOKEN1_ID/TOKEN2_ID?count=<number>` - Return mean swap price for tokens. Mean is not AVG, but ration on the pool address
+* `/asset_swap/TOKEN1_ID/TOKEN2_ID?count=<number>` - Return last swap price for tokens.
+* `/socket/` - WebSocket enpoint for Live informatino about swap.
+
 
 ## Setting up
 
 Run a Postgres instance and create an empty databas for this project:
 
 ```bash
-psql -U postgres -c 'CREATE DATABASE cardano_price_feed;'
-```
-
-## Running
-
-```bash
-export DATABASE_URL='postgres://postgres:postgres@localhost:5432/cardano_price_feed'
+export DATABASE_URL='postgres://postgres:postgres@localhost:5432/wtp'
+psql -U postgres -c 'CREATE DATABASE wtp;'
 cargo migrate up
 cargo run -- -s 'relays-new.cardano-mainnet.iohk.io:3001' -d $DATABASE_URL
 ```
@@ -33,6 +46,8 @@ sea-orm-cli migrate generate "your_migration_name"
 cargo migrate up
 sea-orm-cli generate entity -o src/entity
 ```
+
+## Run
 
 ```bash
 # Ideal run parametres for WR
